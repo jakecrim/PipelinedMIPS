@@ -313,22 +313,34 @@ void handle_pipeline()
 {
 	/*INSTRUCTION_COUNT should be incremented when instruction is done*/
 	/*Since we do not have branch/jump instructions, INSTRUCTION_COUNT should be incremented in WB stage */
-	printf("*******************\n");	
-	WB();
+	if(CURRENT_STATE.PC >= 0x00400010)
+	{
+		printf("*******************\n");	
+		WB();
+	}
 
-	printf("*******************\n");	
-	MEM();
+	if(CURRENT_STATE.PC >= 0x0040000C)
+	{
+		printf("*******************\n");	
+		MEM();
+	}
 
-	printf("*******************\n");	
-	EX();
+	if(CURRENT_STATE.PC >= 0x00400008)
+	{
+		printf("*******************\n");	
+		EX();
+	}
 
-	printf("*******************\n");	
-	ID();
+	if(CURRENT_STATE.PC >= 0x00400004)
+	{
+		printf("*******************\n");	
+		ID();
+	}
 
 	printf("*******************\n");	
 	IF();
 
-	printf("*******************\n");	
+	printf("*******************\n \n");	
 }
 
 /************************************************************/
@@ -337,7 +349,7 @@ void handle_pipeline()
 void WB()
 {
 	/*IMPLEMENT THIS*/
-	printf("Writeback: \n");
+	printf("-Writeback- \n");
 }
 
 /************************************************************/
@@ -346,7 +358,7 @@ void WB()
 void MEM()
 {
 	/*IMPLEMENT THIS*/
-	printf("Memory Access: \n");
+	printf("-Memory Access- \n");
 }
 
 /************************************************************/
@@ -355,7 +367,7 @@ void MEM()
 void EX()
 {
 	/*IMPLEMENT THIS*/
-	printf("Execution: \n");
+	printf("-Execution- \n");
 }
 
 /************************************************************/
@@ -363,8 +375,35 @@ void EX()
 /************************************************************/
 void ID()
 {
-	/*IMPLEMENT THIS*/
-	printf("Instruction Decode: \n");
+	/*W.I.P.*/
+	printf("-Instruction Decode- \n");
+
+	uint32_t opcode, function, rs, rt, rd, sa, immediate, target, offset;
+	opcode = (ID_IF.IR & 0xFC000000) >> 26;
+	function = ID_IF.IR & 0x0000003F;
+	rs = (ID_IF.IR & 0x03E00000) >> 21;
+	rt = (ID_IF.IR & 0x001F0000) >> 16;
+	rd = (ID_IF.IR & 0x0000F800) >> 11;
+	sa = (ID_IF.IR & 0x000007C0) >> 6;
+	immediate = ID_IF.IR & 0x0000FFFF;
+	target = ID_IF.IR & 0x03FFFFFF;
+
+	printf("rs: 0x%08x rt: 0x%08x \n", rs, rt);
+	// read from register file
+	IF_EX.A = CURRENT_STATE.REGS[rs];
+	IF_EX.B = CURRENT_STATE.REGS[rt];
+
+	// sign extend immediate
+	// if the 16th bit is set, sign extend	
+	if( immediate & 0x00008000)
+	{
+		printf("SET \n");
+		IF_EX.imm = immediate | 0xFFFF0000;
+	}
+	else
+		IF_EX.imm = immediate;
+	/* VERIFY LATER THAT SIGN EXTENDING IS WORKING */
+	printf("Immediate Signed: 0x%08x \n", IF_EX.imm);
 }
 
 /************************************************************/
@@ -372,8 +411,8 @@ void ID()
 /************************************************************/
 void IF()
 {
-	/*IMPLEMENT THIS*/
-	printf("Instruction Fetch: \n");
+	printf("-Instruction Fetch- \n");
+
 	ID_IF.IR = mem_read_32(CURRENT_STATE.PC);
 	printf("Current Instruction: 0x%08X \n", ID_IF.IR);
 	NEXT_STATE.PC = CURRENT_STATE.PC + 4;
