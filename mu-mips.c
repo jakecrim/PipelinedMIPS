@@ -313,12 +313,22 @@ void handle_pipeline()
 {
 	/*INSTRUCTION_COUNT should be incremented when instruction is done*/
 	/*Since we do not have branch/jump instructions, INSTRUCTION_COUNT should be incremented in WB stage */
-	
+	printf("*******************\n");	
 	WB();
+
+	printf("*******************\n");	
 	MEM();
+
+	printf("*******************\n");	
 	EX();
+
+	printf("*******************\n");	
 	ID();
+
+	printf("*******************\n");	
 	IF();
+
+	printf("*******************\n");	
 }
 
 /************************************************************/
@@ -327,6 +337,7 @@ void handle_pipeline()
 void WB()
 {
 	/*IMPLEMENT THIS*/
+	printf("Writeback: \n");
 }
 
 /************************************************************/
@@ -335,6 +346,7 @@ void WB()
 void MEM()
 {
 	/*IMPLEMENT THIS*/
+	printf("Memory Access: \n");
 }
 
 /************************************************************/
@@ -343,6 +355,7 @@ void MEM()
 void EX()
 {
 	/*IMPLEMENT THIS*/
+	printf("Execution: \n");
 }
 
 /************************************************************/
@@ -351,6 +364,7 @@ void EX()
 void ID()
 {
 	/*IMPLEMENT THIS*/
+	printf("Instruction Decode: \n");
 }
 
 /************************************************************/
@@ -359,6 +373,10 @@ void ID()
 void IF()
 {
 	/*IMPLEMENT THIS*/
+	printf("Instruction Fetch: \n");
+	ID_IF.IR = mem_read_32(CURRENT_STATE.PC);
+	printf("Current Instruction: 0x%08X \n", ID_IF.IR);
+	NEXT_STATE.PC = CURRENT_STATE.PC + 4;
 }
 
 
@@ -384,6 +402,7 @@ void print_program(){
 /************************************************************/
 void show_pipeline(){
 	/*IMPLEMENT THIS*/
+	printf("PC: 0x%08X \n", CURRENT_STATE.PC);
 }
 
 /***************************************************************/
