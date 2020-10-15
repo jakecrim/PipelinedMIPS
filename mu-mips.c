@@ -313,10 +313,14 @@ void handle_pipeline()
 {
 	/*INSTRUCTION_COUNT should be incremented when instruction is done*/
 	/*Since we do not have branch/jump instructions, INSTRUCTION_COUNT should be incremented in WB stage */
+
+	printf("|		CYCLE			|\n");
+
 	if(CURRENT_STATE.PC >= 0x00400010)
 	{
 		printf("*******************\n");	
 		WB();
+		INSTRUCTION_COUNT++;
 	}
 
 	if(CURRENT_STATE.PC >= 0x0040000C)
@@ -366,8 +370,64 @@ void MEM()
 /************************************************************/
 void EX()
 {
-	/*IMPLEMENT THIS*/
+	/*W.I.P.*/
 	printf("-Execution- \n");
+	// holds instruction type *using ls as testing*
+	char instructionType[2] = "ls";
+	uint32_t opcode, function;
+
+	// getting necessary pieces of the instruction for execution
+	opcode = (IF_EX.IR & 0xFC000000) >> 26;
+	function = IF_EX.IR & 0x0000003F;
+
+	// Load/Store
+	if(strcmp(instructionType, "ls") == 0)
+	{
+		printf("Load/Store Instruction: \n");
+
+	}
+	// Register - Register Operation
+	if(strcmp(instructionType, "rr") == 0)
+	{
+		printf("Register - Register Instruction: \n");
+
+	}
+
+	// Register - Immediate Operation
+	if(strcmp(instructionType, "ri") == 0)
+	{
+		printf("Register - Immediate Instruction: \n");
+
+	}
+
+	if(opcode == 0x00)
+	{
+		switch(function)
+		{
+
+		}
+	}
+	else
+	{
+		switch (opcode)
+		{
+			// ADDI
+			case 0x08:
+
+				break;
+			case 0x09: //ADDIU
+				EX_MEM.ALUOutput = IF_EX.A + ( (IF_EX.imm & 0x8000) > 0 ? (IF_EX.imm | 0xFFFF0000) : (IF_EX.imm & 0x0000FFFF));
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+				break;
+
+			
+			default:
+				printf("Instruction not implemented! \n");
+				break;
+		}
+	}
+	
+
 }
 
 /************************************************************/
@@ -387,6 +447,9 @@ void ID()
 	sa = (ID_IF.IR & 0x000007C0) >> 6;
 	immediate = ID_IF.IR & 0x0000FFFF;
 	target = ID_IF.IR & 0x03FFFFFF;
+
+	// *** IS THIS NECESSARY??? ***
+	IF_EX.IR = ID_IF.IR;
 
 	printf("rs: 0x%08x rt: 0x%08x \n", rs, rt);
 	// read from register file
@@ -416,6 +479,7 @@ void IF()
 	ID_IF.IR = mem_read_32(CURRENT_STATE.PC);
 	printf("Current Instruction: 0x%08X \n", ID_IF.IR);
 	NEXT_STATE.PC = CURRENT_STATE.PC + 4;
+	ID_IF.PC = CURRENT_STATE.PC + 4;
 }
 
 
