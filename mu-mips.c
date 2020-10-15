@@ -377,8 +377,8 @@ void EX()
 	uint32_t opcode, function;
 
 	// getting necessary pieces of the instruction for execution
-	opcode = (IF_EX.IR & 0xFC000000) >> 26;
-	function = IF_EX.IR & 0x0000003F;
+	opcode = (ID_EX.IR & 0xFC000000) >> 26;
+	function = ID_EX.IR & 0x0000003F;
 
 	// Load/Store
 	if(strcmp(instructionType, "ls") == 0)
@@ -416,7 +416,7 @@ void EX()
 
 				break;
 			case 0x09: //ADDIU
-				EX_MEM.ALUOutput = IF_EX.A + ( (IF_EX.imm & 0x8000) > 0 ? (IF_EX.imm | 0xFFFF0000) : (IF_EX.imm & 0x0000FFFF));
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;
 
@@ -438,35 +438,35 @@ void ID()
 	/*W.I.P.*/
 	printf("-Instruction Decode- \n");
 
-	uint32_t opcode, function, rs, rt, rd, sa, immediate, target, offset;
-	opcode = (ID_IF.IR & 0xFC000000) >> 26;
-	function = ID_IF.IR & 0x0000003F;
-	rs = (ID_IF.IR & 0x03E00000) >> 21;
-	rt = (ID_IF.IR & 0x001F0000) >> 16;
-	rd = (ID_IF.IR & 0x0000F800) >> 11;
-	sa = (ID_IF.IR & 0x000007C0) >> 6;
-	immediate = ID_IF.IR & 0x0000FFFF;
-	target = ID_IF.IR & 0x03FFFFFF;
+	uint32_t rs, rt, immediate;
+	// opcode = (IF_ID.IR & 0xFC000000) >> 26;
+	// function = IF_ID.IR & 0x0000003F;
+	rs = (IF_ID.IR & 0x03E00000) >> 21;
+	rt = (IF_ID.IR & 0x001F0000) >> 16;
+	// rd = (IF_ID.IR & 0x0000F800) >> 11;
+	// sa = (IF_ID.IR & 0x000007C0) >> 6;
+	immediate = IF_ID.IR & 0x0000FFFF;
+	// target = IF_ID.IR & 0x03FFFFFF;
 
 	// *** IS THIS NECESSARY??? ***
-	IF_EX.IR = ID_IF.IR;
+	ID_EX.IR = IF_ID.IR;
 
 	printf("rs: 0x%08x rt: 0x%08x \n", rs, rt);
 	// read from register file
-	IF_EX.A = CURRENT_STATE.REGS[rs];
-	IF_EX.B = CURRENT_STATE.REGS[rt];
+	ID_EX.A = CURRENT_STATE.REGS[rs];
+	ID_EX.B = CURRENT_STATE.REGS[rt];
 
 	// sign extend immediate
 	// if the 16th bit is set, sign extend	
 	if( immediate & 0x00008000)
 	{
 		printf("SET \n");
-		IF_EX.imm = immediate | 0xFFFF0000;
+		ID_EX.imm = immediate | 0xFFFF0000;
 	}
 	else
-		IF_EX.imm = immediate;
+		ID_EX.imm = immediate;
 	/* VERIFY LATER THAT SIGN EXTENDING IS WORKING */
-	printf("Immediate Signed: 0x%08x \n", IF_EX.imm);
+	printf("Immediate Signed: 0x%08x \n", ID_EX.imm);
 }
 
 /************************************************************/
@@ -476,10 +476,10 @@ void IF()
 {
 	printf("-Instruction Fetch- \n");
 
-	ID_IF.IR = mem_read_32(CURRENT_STATE.PC);
-	printf("Current Instruction: 0x%08X \n", ID_IF.IR);
+	IF_ID.IR = mem_read_32(CURRENT_STATE.PC);
+	printf("Current Instruction: 0x%08X \n", IF_ID.IR);
 	NEXT_STATE.PC = CURRENT_STATE.PC + 4;
-	ID_IF.PC = CURRENT_STATE.PC + 4;
+	IF_ID.PC = CURRENT_STATE.PC + 4;
 }
 
 
@@ -505,7 +505,32 @@ void print_program(){
 /************************************************************/
 void show_pipeline(){
 	/*IMPLEMENT THIS*/
+	//IF/ID pipeline register
 	printf("PC: 0x%08X \n", CURRENT_STATE.PC);
+	printf("IF/ID.IR 0x%08X \n", IF_ID.IR);
+	//also print the instruction
+	printf("IF/ID.PC 0x%08X \n, ", IF_ID.PC);
+	printf("\n");
+
+	//ID/EX pipeline register
+	printf("ID/EX.IR, 0x%08X \n", ID_EX.IR);
+	//also print the instruction
+	printf("ID/EX.A 0x%08X \n", ID_EX.A);
+	printf("ID/EX.B 0x%08X \n", ID_EX.B);
+	printf("ID/EX.imm 0x%08X \n", ID_EX.imm);
+	printf("\n");
+
+	//EX/MEM pipeline register
+	printf("EX/MEM.IR 0x%08X \n", EX_MEM.IR);
+	printf("EX/MEM.A 0x%08X \n", EX_MEM.A);
+	printf("EX/MEM.B 0x%08X \n", EX_MEM.B);
+	printf("EX/MEM.ALUOutput 0x%08X \n", EX_MEM.ALUOutput);
+	printf("\n");
+
+	//MEM/WB pipeline register
+	printf("MEM/WB.IR 0x%08X \n", MEM_WB.IR);
+	printf("MEM/WB.ALUOutput 0x%08X \n", MEM_WB.ALUOutput);
+	printf("MEM/WB.LMD 0x%08x \n", MEM_WB.LMD);
 }
 
 /***************************************************************/
