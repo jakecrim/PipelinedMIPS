@@ -372,6 +372,7 @@ void EX()
 {
 	/*W.I.P.*/
 	printf("-Execution- \n");
+	EX_MEM.IR = ID_EX.IR;
 	// holds instruction type *using ls as testing*
 	char instructionType[2] = "ls";
 	uint32_t opcode, function;
@@ -437,7 +438,9 @@ void ID()
 {
 	/*W.I.P.*/
 	printf("-Instruction Decode- \n");
-
+	// *** IS THIS NECESSARY??? ***
+	ID_EX.IR = IF_ID.IR;
+	
 	uint32_t rs, rt, immediate;
 	// opcode = (IF_ID.IR & 0xFC000000) >> 26;
 	// function = IF_ID.IR & 0x0000003F;
@@ -448,8 +451,6 @@ void ID()
 	immediate = IF_ID.IR & 0x0000FFFF;
 	// target = IF_ID.IR & 0x03FFFFFF;
 
-	// *** IS THIS NECESSARY??? ***
-	ID_EX.IR = IF_ID.IR;
 
 	printf("rs: 0x%08x rt: 0x%08x \n", rs, rt);
 	// read from register file
