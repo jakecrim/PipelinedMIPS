@@ -354,13 +354,22 @@ void WB()
 {
 	/*IMPLEMENT THIS*/
 	printf("-Writeback- \n");
-	if (MEM_WB.instructionType[2] == "rr")
-		CURRENT_STATE.REGS[MEM_WB.A] = MEM_WB.ALUOutput;
-	else if (MEM_WB.instructionType[2] == "ri")
-		CURRENT_STATE.REGS[MEM_WB]
 
-
-
+	if (strcmp(MEM_WB.instructionType, "rr") == 0)
+	{															//register-register instructions
+		CURRENT_STATE.REGS[MEM_WB.A] = MEM_WB.ALUOutput;		//assuming A is rd
+		printf("Result: 0x%08X \n ", CURRENT_STATE.REGS[MEM_WB.A]);
+	}	 														
+	else if (strcmp(MEM_WB.instructionType, "ri") == 0)
+	{															//register-immediate instructions
+		CURRENT_STATE.REGS[MEM_WB.B] = MEM_WB.ALUOutput; 		//assuming B is rt
+		printf("Result: 0x%08X \n ", CURRENT_STATE.REGS[MEM_WB.B]);
+	}	
+	else if (strcmp(MEM_WB.instructionType, "ls") == 0)
+	{															//load/store instructions
+		CURRENT_STATE.REGS[MEM_WB.B] = MEM_WB.LMD; 				//assuming B is rt
+		printf("Result: 0x%08X \n ", CURRENT_STATE.REGS[MEM_WB.B]);	
+	}
 }
 
 /************************************************************/
