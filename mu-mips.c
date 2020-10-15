@@ -361,8 +361,27 @@ void WB()
 /************************************************************/
 void MEM()
 {
-	/*IMPLEMENT THIS*/
+	/*W.I.P.*/
 	printf("-Memory Access- \n");
+	MEM_WB.IR = EX_MEM.IR;
+
+	char instructionType= "l";
+
+	// load
+	if(EX_MEM.instruction[0] == 'l')
+	{
+		MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
+	}
+	// store
+	else if(EX_MEM.instruction[0] == 's')
+	{
+		mem_write_32(EX_MEM.ALUOutput, EX_MEM.B);	
+	}
+	// just for testing...
+	else
+		printf("Skipping MEM: \n");
+	
+
 }
 
 /************************************************************/
@@ -374,32 +393,12 @@ void EX()
 	printf("-Execution- \n");
 	EX_MEM.IR = ID_EX.IR;
 	// holds instruction type *using ls as testing*
-	char instructionType[2] = "ls";
 	uint32_t opcode, function;
 
 	// getting necessary pieces of the instruction for execution
 	opcode = (ID_EX.IR & 0xFC000000) >> 26;
 	function = ID_EX.IR & 0x0000003F;
 
-	// Load/Store
-	if(strcmp(instructionType, "ls") == 0)
-	{
-		printf("Load/Store Instruction: \n");
-
-	}
-	// Register - Register Operation
-	if(strcmp(instructionType, "rr") == 0)
-	{
-		printf("Register - Register Instruction: \n");
-
-	}
-
-	// Register - Immediate Operation
-	if(strcmp(instructionType, "ri") == 0)
-	{
-		printf("Register - Immediate Instruction: \n");
-
-	}
 
 	if(opcode == 0x00)
 	{
@@ -417,6 +416,7 @@ void EX()
 
 				break;
 			case 0x09: //ADDIU
+				strcpy(EX_MEM.instruction,"addiu");
 				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;

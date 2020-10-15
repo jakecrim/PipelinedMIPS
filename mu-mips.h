@@ -53,6 +53,7 @@ typedef struct CPU_Pipeline_Reg_Struct{
 	uint32_t imm;
 	uint32_t ALUOutput;
 	uint32_t LMD;
+	char instruction[5];
 	
 } CPU_Pipeline_Reg;
 
