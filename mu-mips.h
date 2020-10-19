@@ -50,10 +50,12 @@ typedef struct CPU_Pipeline_Reg_Struct{
 	uint32_t IR;
 	uint32_t A;
 	uint32_t B;
+	uint32_t C;
 	uint32_t imm;
 	uint32_t ALUOutput;
 	uint32_t LMD;
 	char instruction[5];
+	char instructionType[2];
 	
 } CPU_Pipeline_Reg;
 

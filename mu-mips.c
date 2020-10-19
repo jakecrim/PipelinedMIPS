@@ -341,7 +341,7 @@ void handle_pipeline()
 		ID();
 	}
 
-	printf("*******************\n");	
+	printf("*******************\n");	  
 	IF();
 
 	printf("*******************\n \n");	
@@ -354,6 +354,13 @@ void WB()
 {
 	/*IMPLEMENT THIS*/
 	printf("-Writeback- \n");
+	if (MEM_WB.instructionType[2] == "rr")
+		CURRENT_STATE.REGS[MEM_WB.A] = MEM_WB.ALUOutput;
+	else if (MEM_WB.instructionType[2] == "ri")
+		CURRENT_STATE.REGS[MEM_WB];
+
+
+
 }
 
 /************************************************************/
