@@ -355,7 +355,7 @@ void WB()
 	/*IMPLEMENT THIS*/
 	printf("-Writeback- \n");
 
-	//strcpy(MEM_WB.instructionType, "ls"); // for testing if statements
+	strcpy(MEM_WB.instructionType, "ls"); // for testing if statements
 
 	if (strcmp(MEM_WB.instructionType, "rr") == 0)
 	{															//register-register instructions 
@@ -446,6 +446,13 @@ void EX()
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;
 
+			case 0x0F: //LUI
+				strcpy(EX_MEM.instruction,"lui");
+				CURRENT_STATE.REGS[ID_EX.B] = ID_EX.imm << 16;
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.B];
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+				break;
+
 			
 			default:
 				printf("Instruction not implemented! \n");
@@ -463,7 +470,7 @@ void ID()
 {
 	/*W.I.P.*/
 	printf("-Instruction Decode- \n");
-	// *** IS THIS NECESSARY??? ***
+	// *** IS THIS NECESSARY??? *** Yes, we need to pass the instruction along to the next stage every cycle.
 	ID_EX.IR = IF_ID.IR;
 	
 	uint32_t rs, rt, immediate;
@@ -475,9 +482,13 @@ void ID()
 	// sa = (IF_ID.IR & 0x000007C0) >> 6;
 	immediate = IF_ID.IR & 0x0000FFFF;
 	// target = IF_ID.IR & 0x03FFFFFF;
-
-
 	printf("rs: 0x%08x rt: 0x%08x \n", rs, rt);
+	
+	//I added this. seems redundant but wanted to utilize actual mips registers
+	CURRENT_STATE.REGS[rs] = rs;
+	CURRENT_STATE.REGS[rt] = rt;
+
+
 	// read from register file
 	ID_EX.A = CURRENT_STATE.REGS[rs];
 	ID_EX.B = CURRENT_STATE.REGS[rt];
@@ -531,16 +542,16 @@ void print_program(){
 /************************************************************/
 void show_pipeline(){
 	/*IMPLEMENT THIS*/
+	printf("\n---Pipeline Contents---\n");
+
 	//IF/ID pipeline register
 	printf("PC: 0x%08X \n", CURRENT_STATE.PC);
 	printf("IF/ID.IR 0x%08X \n", IF_ID.IR);
-	//also print the instruction
-	printf("IF/ID.PC 0x%08X \n, ", IF_ID.PC);
+	printf("IF/ID.PC 0x%08X \n", IF_ID.PC);
 	printf("\n");
 
 	//ID/EX pipeline register
-	printf("ID/EX.IR, 0x%08X \n", ID_EX.IR);
-	//also print the instruction
+	printf("ID/EX.IR 0x%08X \n", ID_EX.IR);
 	printf("ID/EX.A 0x%08X \n", ID_EX.A);
 	printf("ID/EX.B 0x%08X \n", ID_EX.B);
 	printf("ID/EX.imm 0x%08X \n", ID_EX.imm);
