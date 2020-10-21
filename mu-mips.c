@@ -355,21 +355,30 @@ void WB()
 	/*IMPLEMENT THIS*/
 	printf("-Writeback- \n");
 
+	//strcpy(MEM_WB.instructionType, "ls"); // for testing if statements
+
 	if (strcmp(MEM_WB.instructionType, "rr") == 0)
-	{															//register-register instructions
-		CURRENT_STATE.REGS[MEM_WB.A] = MEM_WB.ALUOutput;		//assuming A is rd
+	{															//register-register instructions 
+		CURRENT_STATE.REGS[MEM_WB.A] = MEM_WB.ALUOutput;		//assuming A is rd 
+		printf("Register-Register Instruction\n");
 		printf("Result: 0x%08X \n ", CURRENT_STATE.REGS[MEM_WB.A]);
+
 	}	 														
 	else if (strcmp(MEM_WB.instructionType, "ri") == 0)
-	{															//register-immediate instructions
+	{															//register-immediate instructions 
 		CURRENT_STATE.REGS[MEM_WB.B] = MEM_WB.ALUOutput; 		//assuming B is rt
+		printf("Register-Immediate Instruction \n");
 		printf("Result: 0x%08X \n ", CURRENT_STATE.REGS[MEM_WB.B]);
 	}	
 	else if (strcmp(MEM_WB.instructionType, "ls") == 0)
 	{															//load/store instructions
 		CURRENT_STATE.REGS[MEM_WB.B] = MEM_WB.LMD; 				//assuming B is rt
-		printf("Result: 0x%08X \n ", CURRENT_STATE.REGS[MEM_WB.B]);	
+		printf("Load/Store Instruction \n");
+		printf("Result: 0x%08X \n", CURRENT_STATE.REGS[MEM_WB.B]);	
 	}
+	
+	INSTRUCTION_COUNT = INSTRUCTION_COUNT + 4;
+	printf("****Instruction Complete****\n");
 }
 
 /************************************************************/
@@ -381,7 +390,7 @@ void MEM()
 	printf("-Memory Access- \n");
 	MEM_WB.IR = EX_MEM.IR;
 
-	char instructionType= "l";
+	//char instructionType= "l";
 
 	// load
 	if(EX_MEM.instruction[0] == 'l')
