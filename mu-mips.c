@@ -362,6 +362,7 @@ void WB()
 	{															//register-register instructions 
 		CURRENT_STATE.REGS[MEM_WB.A] = MEM_WB.ALUOutput;		//assuming A is rd 
 		printf("Register-Register Instruction\n");
+		printf("MEM_WB.A: 0x%08x \n", MEM_WB.A);
 		printf("Result: 0x%08X \n ", CURRENT_STATE.REGS[MEM_WB.A]);
 
 	}	 														
@@ -375,9 +376,7 @@ void WB()
 	{															//load/store instructions
 		CURRENT_STATE.REGS[MEM_WB.B] = MEM_WB.LMD; 				//assuming B is rt
 		printf("Load/Store Instruction \n");
-		printf("Result: 0x%08X \n", CURRENT_STATE.REGS[MEM_WB.B]);	
 	}
-	
 	INSTRUCTION_COUNT = INSTRUCTION_COUNT + 4;
 	printf("****Instruction Complete****\n");
 }
@@ -443,29 +442,39 @@ void EX()
 		{
 			//ADD
 			case 0x20:
+				EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 
 				break;
 
 			//ADDU
 			case 0x21:
+				EX_MEM.ALUOutput = ID_EX.B + ID_EX.A;
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 
 				break;			
 			
 			//NOR
 			case 0x27:
+				EX_MEM.ALUOutput = ~(ID_EX.A | ID_EX.B);
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 
 				break;
 			//SLT
 			case 0x2A:
+				if(ID_EX.A < ID_EX.B){
+					EX_MEM.ALUOutput = 0x1;
+				}
+				else{
+					EX_MEM.ALUOutput = 0x0;
+				}
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 
 				break;	
 
 			//SLL
 			case 0x00:
+				EX_MEM.ALUOutput = EX_MEM.A << EX_MEM.B;
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 
 				break;	
@@ -524,10 +533,18 @@ void EX()
 				break;	
 			//SRL
 			case 0x02:
+				EX_MEM.ALUOutput = EX_MEM.A >> EX_MEM.B;
 					printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 			break;
 			//SRA
 			case 0x03:
+				if((EX_MEM.A & 0x80000000) ==  1)
+				{
+					EX_MEM.ALUOutput = ~(~EX_MEM.A >> EX_MEM.B);
+				}
+				else{
+					EX_MEM.ALUOutput = EX_MEM.A >> EX_MEM.B;
+				}
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 
 				break;	
