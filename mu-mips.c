@@ -69,7 +69,7 @@ void mem_write_32(uint32_t address, uint32_t value)
 /***************************************************************/
 void cycle() {                                                
 	handle_pipeline();
-	CURRENT_STATE = NEXT_STATE;
+	CURRENT_STATE.PC = NEXT_STATE.PC;
 	CYCLE_COUNT++;
 }
 
@@ -355,7 +355,8 @@ void WB()
 	/*IMPLEMENT THIS*/
 	printf("-Writeback- \n");
 
-	strcpy(MEM_WB.instructionType, "rr"); // for testing if statements
+	// strcpy(MEM_WB.instructionType, "rr"); // for testing if statements
+
 
 	if (strcmp(MEM_WB.instructionType, "rr") == 0)
 	{															//register-register instructions 
@@ -389,6 +390,11 @@ void MEM()
 	/*W.I.P.*/
 	printf("-Memory Access- \n");
 	MEM_WB.IR = EX_MEM.IR;
+	MEM_WB.A = EX_MEM.A;
+	MEM_WB.B = EX_MEM.B;
+	MEM_WB.ALUOutput = EX_MEM.ALUOutput;
+	memcpy(MEM_WB.instructionType, EX_MEM.instructionType, sizeof(EX_MEM.instructionType));
+	
 
 	// int testAddr = 0x10010000;
 
@@ -421,6 +427,8 @@ void EX()
 	/*W.I.P.*/
 	printf("-Execution- \n");
 	EX_MEM.IR = ID_EX.IR;
+	EX_MEM.A = ID_EX.A;
+	EX_MEM.B = ID_EX.B;
 	// holds instruction type *using ls as testing*
 	uint32_t opcode, function, addr;
 
@@ -557,8 +565,9 @@ void EX()
 
 				break;
 			case 0x09: //ADDIU
-				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.A] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "ri");
 				break;
 			case 0x0A: //SLTI
 				if ( (  (int32_t)ID_EX.A - (int32_t)( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF))) < 0){
@@ -576,11 +585,10 @@ void EX()
 			case 0x0E: //XORI
 				EX_MEM.ALUOutput = ID_EX.A ^ (ID_EX.imm & 0x0000FFFF);
 				break;
-			case 0x0F: //LUI
-				strcpy(EX_MEM.instruction,"lui");
-				CURRENT_STATE.REGS[ID_EX.B] = ID_EX.imm << 16;
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.B];
+			case 0x0F: //LUI 
+				EX_MEM.ALUOutput = ID_EX.imm << 16;
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "ri");
 				break;
 			case 0x20: //LB ?
 				strcpy(EX_MEM.instruction,"lb");
@@ -632,13 +640,13 @@ void ID()
 	// *** IS THIS NECESSARY??? *** Yes, we need to pass the instruction along to the next stage every cycle.
 	ID_EX.IR = IF_ID.IR;
 	
-	uint32_t rs, rt, immediate;
+	uint32_t rs, rt, immediate, sa;
 	// opcode = (IF_ID.IR & 0xFC000000) >> 26;
 	// function = IF_ID.IR & 0x0000003F;
 	rs = (IF_ID.IR & 0x03E00000) >> 21;
 	rt = (IF_ID.IR & 0x001F0000) >> 16;
 	// rd = (IF_ID.IR & 0x0000F800) >> 11;
-	// sa = (IF_ID.IR & 0x000007C0) >> 6;
+	sa = (IF_ID.IR & 0x000007C0) >> 6;
 	immediate = IF_ID.IR & 0x0000FFFF;
 	// target = IF_ID.IR & 0x03FFFFFF;
 	printf("rs: 0x%08x rt: 0x%08x \n", rs, rt);
@@ -649,11 +657,12 @@ void ID()
 
 
 	// // read from register file
-	ID_EX.A = CURRENT_STATE.REGS[rs]; //probably could just do ID_EX.A = (IF_ID.IR & 0xFC000000) >> 26
-	ID_EX.B = CURRENT_STATE.REGS[rt];
+	// ID_EX.A = CURRENT_STATE.REGS[rs]; //probably could just do ID_EX.A = (IF_ID.IR & 0xFC000000) >> 26
+	// ID_EX.B = CURRENT_STATE.REGS[rt];
 
-	// ID_EX.A = rs;
-	// ID_EX.B = rt;
+	ID_EX.A = rs;
+	ID_EX.B = rt;
+	ID_EX.C = sa;
 
 
 
