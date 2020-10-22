@@ -362,7 +362,6 @@ void WB()
 	{															//register-register instructions 
 		CURRENT_STATE.REGS[MEM_WB.A] = MEM_WB.ALUOutput;		//assuming A is rd 
 		printf("Register-Register Instruction\n");
-		printf("MEM_WB.A: 0x%08x \n", MEM_WB.A);
 		printf("Result: 0x%08X \n ", CURRENT_STATE.REGS[MEM_WB.A]);
 
 	}	 														
@@ -434,6 +433,8 @@ void EX()
 	// holds instruction type *using ls as testing*
 	uint32_t opcode, function, addr;
 
+	uint64_t product, p1, p2;
+
 	// getting necessary pieces of the instruction for execution
 	opcode = (ID_EX.IR & 0xFC000000) >> 26;
 	function = ID_EX.IR & 0x0000003F;
@@ -444,132 +445,171 @@ void EX()
 		{
 			//ADD
 			case 0x20:
-				EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.A] + CURRENT_STATE.REGS[ID_EX.B];
+				printf("ADD Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;
 
 			//ADDU
 			case 0x21:
-				EX_MEM.ALUOutput = ID_EX.B + ID_EX.A;
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.B] + CURRENT_STATE.REGS[ID_EX.A];
+				printf("ADDU Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;			
 			
 			//NOR
 			case 0x27:
-				EX_MEM.ALUOutput = ~(ID_EX.A | ID_EX.B);
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = ~(CURRENT_STATE.REGS[ID_EX.A] | CURRENT_STATE.REGS[ID_EX.B]);
+				printf("NOR Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;
+
 			//SLT
 			case 0x2A:
-				if(ID_EX.A < ID_EX.B){
+				if(CURRENT_STATE.REGS[ID_EX.A] < CURRENT_STATE.REGS[ID_EX.B]){
 					EX_MEM.ALUOutput = 0x1;
 				}
 				else{
 					EX_MEM.ALUOutput = 0x0;
 				}
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				printf("SLT Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;	
 
 			//SLL
 			case 0x00:
-				EX_MEM.ALUOutput = EX_MEM.A << EX_MEM.B;
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.B] << EX_MEM.C;
+				printf("SLL Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;	
+
 			//SUB
 			case 0x22:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] - CURRENT_STATE.REGS[EX_MEM.B];
+				printf("SUB Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;
 
 			//SUBU
 			case 0x23:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] - CURRENT_STATE.REGS[EX_MEM.B];
+				printf("SUBU Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;
 
-			//MULT
+			//MULT 
 			case 0x18:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				if((CURRENT_STATE.REGS[EX_MEM.A] & 0x80000000) == 0x80000000){
+					p1 = 0xFFFFFFFF00000000 | CURRENT_STATE.REGS[EX_MEM.A];
+				}else{
+					p1 = 0x00000000FFFFFFFF | CURRENT_STATE.REGS[EX_MEM.A];
+				}
+				if((CURRENT_STATE.REGS[EX_MEM.B] & 0x80000000) == 0x80000000){
+					p2 = 0xFFFFFFFF00000000 | CURRENT_STATE.REGS[EX_MEM.B];
+				}else{
+					p2 = 0x00000000FFFFFFFF | CURRENT_STATE.REGS[EX_MEM.B];
+				}
+				product = p1 * p2;
+				NEXT_STATE.LO = (product & 0x00000000FFFFFFFF);
+				NEXT_STATE.HI = (product & 0xFFFFFFFF00000000)>>32;
+				printf("MULT LO Result: 0x%08X \n", NEXT_STATE.LO);
+				printf("MULT HI Result: 0x%08X \n", NEXT_STATE.HI);
+				strcpy(EX_MEM.instructionType, "rr");				
 				break;
 
 			//MULTU
 			case 0x19:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				product = (uint64_t)CURRENT_STATE.REGS[EX_MEM.A] * (uint64_t)CURRENT_STATE.REGS[EX_MEM.B];
+				NEXT_STATE.LO = (product & 0x00000000FFFFFFFF);
+				NEXT_STATE.HI = (product & 0xFFFFFFFF00000000)>>32;
+				printf("MULTU LO Result: 0x%08X \n", NEXT_STATE.LO);
+				printf("MULTU HI Result: 0x%08X \n", NEXT_STATE.HI);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;
 
 			//DIV
 			case 0x1A:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				if(CURRENT_STATE.REGS[EX_MEM.B] != 0)
+				{
+					NEXT_STATE.LO = (int32_t)CURRENT_STATE.REGS[EX_MEM.A] / (int32_t)CURRENT_STATE.REGS[EX_MEM.B];
+					NEXT_STATE.HI = (int32_t)CURRENT_STATE.REGS[EX_MEM.A] % (int32_t)CURRENT_STATE.REGS[EX_MEM.B];
+				}
+				printf("DIV Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;
 
 			//DIVU
 			case 0x1B:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				if(CURRENT_STATE.REGS[EX_MEM.B] != 0)
+				{
+					NEXT_STATE.LO = CURRENT_STATE.REGS[EX_MEM.A] / CURRENT_STATE.REGS[EX_MEM.B];
+					NEXT_STATE.HI = CURRENT_STATE.REGS[EX_MEM.A] % CURRENT_STATE.REGS[EX_MEM.B];
+				}
+				printf("DIVU Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;		
 
 			//AND
 			case 0x24:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] & CURRENT_STATE.REGS[EX_MEM.B];
+				printf("AND Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;
 
 			//OR
 			case 0x25:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] | CURRENT_STATE.REGS[EX_MEM.B];
+				printf("OR Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;
 
 			//XOR
 			case 0x26:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] ^ CURRENT_STATE.REGS[EX_MEM.B];
+				printf("XOR Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");
 				break;	
+
 			//SRL
 			case 0x02:
-				EX_MEM.ALUOutput = EX_MEM.A >> EX_MEM.B;
-					printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-			break;
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.B] >> EX_MEM.C;
+				printf("SRL Result: 0x%08X \n", EX_MEM.ALUOutput);		
+				strcpy(EX_MEM.instructionType, "rr");
+				break;
+
 			//SRA
 			case 0x03:
-				if((EX_MEM.A & 0x80000000) ==  1)
-				{
-					EX_MEM.ALUOutput = ~(~EX_MEM.A >> EX_MEM.B);
-				}
-				else{
-					EX_MEM.ALUOutput = EX_MEM.A >> EX_MEM.B;
-				}
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = ~(~CURRENT_STATE.REGS[EX_MEM.B] >> EX_MEM.C);
+				printf("SRA Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");	
 				break;	
 
 			//MFHI
 			case 0x10:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = CURRENT_STATE.HI;
+				printf("MFHI Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");	
 				break;
+
 			//MFLO
 			case 0x12:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				EX_MEM.ALUOutput = CURRENT_STATE.LO;
+				printf("MFLO Result: 0x%08X \n", EX_MEM.ALUOutput);
+				strcpy(EX_MEM.instructionType, "rr");	
 				break;
+
 			//MTHI
 			case 0x11:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				NEXT_STATE.HI = CURRENT_STATE.REGS[EX_MEM.A];
+				printf("MTHI Result: 0x%08X \n", NEXT_STATE.HI);
+				strcpy(EX_MEM.instructionType, "rr");	
 				break;
+
 			//MTLO
 			case 0x13:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				NEXT_STATE.LO = CURRENT_STATE.REGS[EX_MEM.A];
+				printf("MTLO Result: 0x%08X \n", NEXT_STATE.LO);
+				strcpy(EX_MEM.instructionType, "rr");	
 				break;
 		}
 	}
