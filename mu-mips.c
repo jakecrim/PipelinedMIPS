@@ -355,7 +355,7 @@ void WB()
 	/*IMPLEMENT THIS*/
 	printf("-Writeback- \n");
 
-	strcpy(MEM_WB.instructionType, "ls"); // for testing if statements
+	strcpy(MEM_WB.instructionType, "rr"); // for testing if statements
 
 	if (strcmp(MEM_WB.instructionType, "rr") == 0)
 	{															//register-register instructions 
@@ -433,7 +433,117 @@ void EX()
 	{
 		switch(function)
 		{
+			//ADD
+			case 0x20:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 
+				break;
+
+			//ADDU
+			case 0x21:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;			
+			
+			//NOR
+			case 0x27:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+			//SLT
+			case 0x2A:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;	
+
+			//SLL
+			case 0x00:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;	
+			//SUB
+			case 0x22:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+
+			//SUBU
+			case 0x23:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+
+			//MULT
+			case 0x18:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+
+			//MULTU
+			case 0x19:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+
+			//DIV
+			case 0x1A:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+
+			//DIVU
+			case 0x1B:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;		
+
+			//AND
+			case 0x24:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+
+			//OR
+			case 0x25:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+
+			//XOR
+			case 0x26:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;	
+			//SRL
+			case 0x02:
+					printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+			break;
+			//SRA
+			case 0x03:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;	
+
+			//MFHI
+			case 0x10:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+			//MFLO
+			case 0x12:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+			//MTHI
+			case 0x11:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+			//MTLO
+			case 0x13:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
 		}
 	}
 	else
@@ -444,6 +554,8 @@ void EX()
 			case 0x08:
 				strcpy(EX_MEM.instruction,"addi");
 				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
 				break;
 			case 0x09: //ADDIU
 				strcpy(EX_MEM.instruction,"addiu");
@@ -477,7 +589,23 @@ void EX()
 				EX_MEM.ALUOutput = ((data & 0x000000FF) & 0x80) > 0 ? (data | 0xFFFFFF00) : (data & 0x000000FF);
 				break;
 
-			
+			//SW
+			case 0x2B:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+			//SB
+			case 0x28:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+			//SH
+			case 0x29:
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+
+				break;
+
+
 			default:
 				printf("Instruction not implemented! \n");
 				break;
@@ -514,7 +642,7 @@ void ID()
 
 
 	// read from register file
-	ID_EX.A = ID_EX.A;
+	ID_EX.A = CURRENT_STATE.REGS[rs]; //probably could just do ID_EX.A = (IF_ID.IR & 0xFC000000) >> 26
 	ID_EX.B = CURRENT_STATE.REGS[rt];
 
 	// sign extend immediate
