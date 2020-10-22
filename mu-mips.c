@@ -230,7 +230,7 @@ void handle_command() {
 			break;
 		case 'P':
 		case 'p':
-			print_program(); 
+			print_program(CURRENT_STATE.PC); 
 			break;
 		default:
 			printf("Invalid Command.\n");
@@ -394,12 +394,15 @@ void MEM()
 	MEM_WB.ALUOutput = EX_MEM.ALUOutput;
 	memcpy(MEM_WB.instructionType, EX_MEM.instructionType, sizeof(EX_MEM.instructionType));
 	
-
-	// int testAddr = 0x10010000;
-
+	/* TESTING RELATED - STUFF NOT FIGURED OUT IN MEETING WITH POONEH YET*/
+	// uint32_t testAddr = 0x10010000;
+	// printf("Current PC: %08X \n", CURRENT_STATE.PC);
+	// printf("ALU OUT: %08X \n", EX_MEM.ALUOutput);
 	//char instructionType= "l";
 
-	// load
+	// MEM_WB.LMD = mem_read_32(0x00000000);
+
+	// load from memory if not an immediate type
 	if(EX_MEM.instruction[0] == 'l')
 	{
 		// MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
@@ -435,7 +438,6 @@ void EX()
 	opcode = (ID_EX.IR & 0xFC000000) >> 26;
 	function = ID_EX.IR & 0x0000003F;
 
-	printf("Test 1 \n");
 	if(opcode == 0x00)
 	{
 		switch(function)
@@ -582,7 +584,7 @@ void EX()
 
 				break;
 			case 0x09: //ADDIU
-				printf("Test 0x%08X \n", ID_EX.A);
+				// printf("Test 0x%08X \n", ID_EX.A);
 				EX_MEM.ALUOutput = CURRENT_STATE.REGS[CURRENT_STATE.REGS[ID_EX.A]] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				strcpy(EX_MEM.instructionType, "ri");
@@ -625,7 +627,8 @@ void EX()
 				break;
 			case 0x23: //LW
 				strcpy(EX_MEM.instruction,"lw");
-				addr = CURRENT_STATE.REGS[ID_EX.A] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.A] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				printf("Base: 0x%08x \n", ID_EX.A);
 				strcpy(EX_MEM.instructionType, "ls");
 				break;	
 			case 0x28: //SB
@@ -665,14 +668,10 @@ void EX()
 /************************************************************/
 void ID()
 {
-	/*W.I.P.*/
 	printf("-Instruction Decode- \n");
-	// *** IS THIS NECESSARY??? *** Yes, we need to pass the instruction along to the next stage every cycle.
 	ID_EX.IR = IF_ID.IR;
 	
 	uint32_t rs, rt, immediate, sa;
-	// opcode = (IF_ID.IR & 0xFC000000) >> 26;
-	// function = IF_ID.IR & 0x0000003F;
 	rs = (IF_ID.IR & 0x03E00000) >> 21;
 	rt = (IF_ID.IR & 0x001F0000) >> 16;
 	// rd = (IF_ID.IR & 0x0000F800) >> 11;
