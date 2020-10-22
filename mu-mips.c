@@ -390,17 +390,21 @@ void MEM()
 	printf("-Memory Access- \n");
 	MEM_WB.IR = EX_MEM.IR;
 
+	// int testAddr = 0x10010000;
+
 	//char instructionType= "l";
 
 	// load
 	if(EX_MEM.instruction[0] == 'l')
 	{
-		MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
+		// MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
+		// MEM_WB.LMD = mem_read_32(testAddr);
 	}
 	// store
 	else if(EX_MEM.instruction[0] == 's')
 	{
 		mem_write_32(EX_MEM.ALUOutput, EX_MEM.B);	
+		// mem_write_32(testAddr, EX_MEM.B);	
 	}
 	// just for testing...
 	else
@@ -418,7 +422,7 @@ void EX()
 	printf("-Execution- \n");
 	EX_MEM.IR = ID_EX.IR;
 	// holds instruction type *using ls as testing*
-	uint32_t opcode, function;
+	uint32_t opcode, function, data;
 
 	// getting necessary pieces of the instruction for execution
 	opcode = (ID_EX.IR & 0xFC000000) >> 26;
@@ -438,19 +442,39 @@ void EX()
 		{
 			// ADDI
 			case 0x08:
-
+				strcpy(EX_MEM.instruction,"addi");
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				break;
 			case 0x09: //ADDIU
 				strcpy(EX_MEM.instruction,"addiu");
 				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;
-
+			case 0x0A: //SLTI
+				if ( (  (int32_t)ID_EX.A - (int32_t)( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF))) < 0){
+					EX_MEM.ALUOutput = 0x1;
+				}else{
+					EX_MEM.ALUOutput = 0x0;
+				}
+				break;
+			case 0x0C: //ANDI
+				EX_MEM.ALUOutput = ID_EX.A & (ID_EX.imm & 0x0000FFFF);
+				break;
+			case 0x0D: //ORI
+				EX_MEM.ALUOutput = ID_EX.A | (ID_EX.imm & 0x0000FFFF);
+				break;
+			case 0x0E: //XORI
+				EX_MEM.ALUOutput = ID_EX.A ^ (ID_EX.imm & 0x0000FFFF);
+				break;
 			case 0x0F: //LUI
 				strcpy(EX_MEM.instruction,"lui");
 				CURRENT_STATE.REGS[ID_EX.B] = ID_EX.imm << 16;
 				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.B];
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+				break;
+			case 0x20: //LB
+				data = mem_read_32( ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
+				EX_MEM.ALUOutput = ((data & 0x000000FF) & 0x80) > 0 ? (data | 0xFFFFFF00) : (data & 0x000000FF);
 				break;
 
 			
@@ -485,12 +509,12 @@ void ID()
 	printf("rs: 0x%08x rt: 0x%08x \n", rs, rt);
 	
 	//I added this. seems redundant but wanted to utilize actual mips registers
-	CURRENT_STATE.REGS[rs] = rs;
+	ID_EX.A = rs;
 	CURRENT_STATE.REGS[rt] = rt;
 
 
 	// read from register file
-	ID_EX.A = CURRENT_STATE.REGS[rs];
+	ID_EX.A = ID_EX.A;
 	ID_EX.B = CURRENT_STATE.REGS[rt];
 
 	// sign extend immediate
@@ -513,10 +537,10 @@ void IF()
 {
 	printf("-Instruction Fetch- \n");
 
+	IF_ID.PC = CURRENT_STATE.PC;
 	IF_ID.IR = mem_read_32(CURRENT_STATE.PC);
 	printf("Current Instruction: 0x%08X \n", IF_ID.IR);
 	NEXT_STATE.PC = CURRENT_STATE.PC + 4;
-	IF_ID.PC = CURRENT_STATE.PC + 4;
 }
 
 
