@@ -401,7 +401,7 @@ void MEM()
 		// MEM_WB.LMD = mem_read_32(testAddr);
 	}
 	// store
-	else if(EX_MEM.instruction[0] == 's')
+	else if(EX_MEM.instruction[0] == 's' && EX_MEM.instruction[1] == 't')
 	{
 		mem_write_32(EX_MEM.ALUOutput, EX_MEM.B);	
 		// mem_write_32(testAddr, EX_MEM.B);	
@@ -422,7 +422,7 @@ void EX()
 	printf("-Execution- \n");
 	EX_MEM.IR = ID_EX.IR;
 	// holds instruction type *using ls as testing*
-	uint32_t opcode, function, data;
+	uint32_t opcode, function, addr;
 
 	// getting necessary pieces of the instruction for execution
 	opcode = (ID_EX.IR & 0xFC000000) >> 26;
@@ -552,13 +552,11 @@ void EX()
 		{
 			// ADDI
 			case 0x08:
-				strcpy(EX_MEM.instruction,"addi");
 				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 
 				break;
 			case 0x09: //ADDIU
-				strcpy(EX_MEM.instruction,"addiu");
 				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;
@@ -584,25 +582,34 @@ void EX()
 				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.B];
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;
-			case 0x20: //LB
-				data = mem_read_32( ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
-				EX_MEM.ALUOutput = ((data & 0x000000FF) & 0x80) > 0 ? (data | 0xFFFFFF00) : (data & 0x000000FF);
+			case 0x20: //LB ?
+				strcpy(EX_MEM.instruction,"lb");
+				addr = ( ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
+				printf("addr: 0x%08X \n", addr);
 				break;
-
-			//SW
-			case 0x2B:
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+			case 0x21: //LH
+				strcpy(EX_MEM.instruction,"lh");
+				addr = ( ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
 				break;
-			//SB
-			case 0x28:
+			case 0x23: //LW
+				strcpy(EX_MEM.instruction,"lw");
+				addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				break;	
+			case 0x28: //SB
+				strcpy(EX_MEM.instruction,"sb");
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				break;	
+			case 0x29: //SH
+				strcpy(EX_MEM.instruction,"sh");
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
+				addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				break;
-			//SH
-			case 0x29:
+			case 0x2B: //SW
+				strcpy(EX_MEM.instruction,"sw");
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-
+				addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				// printf("addr: 0x%08X \n", addr);
 				break;
 
 
@@ -636,14 +643,19 @@ void ID()
 	// target = IF_ID.IR & 0x03FFFFFF;
 	printf("rs: 0x%08x rt: 0x%08x \n", rs, rt);
 	
-	//I added this. seems redundant but wanted to utilize actual mips registers
-	ID_EX.A = rs;
-	CURRENT_STATE.REGS[rt] = rt;
+	// //I added this. seems redundant but wanted to utilize actual mips registers
+	// ID_EX.A = rs;
+	// CURRENT_STATE.REGS[rt] = rt;
 
 
-	// read from register file
+	// // read from register file
 	ID_EX.A = CURRENT_STATE.REGS[rs]; //probably could just do ID_EX.A = (IF_ID.IR & 0xFC000000) >> 26
 	ID_EX.B = CURRENT_STATE.REGS[rt];
+
+	// ID_EX.A = rs;
+	// ID_EX.B = rt;
+
+
 
 	// sign extend immediate
 	// if the 16th bit is set, sign extend	
