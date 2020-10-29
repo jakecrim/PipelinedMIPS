@@ -55,6 +55,7 @@ typedef struct CPU_Pipeline_Reg_Struct{
 	uint32_t LMD;
 	bool loadFlag;
 	bool storeFlag;
+	bool hazardFlag;
 	
 } CPU_Pipeline_Reg;
 
@@ -67,6 +68,8 @@ int RUN_FLAG;	/* run flag*/
 uint32_t INSTRUCTION_COUNT;
 uint32_t CYCLE_COUNT;
 uint32_t PROGRAM_SIZE; /*in words*/
+
+int ENABLE_FORWARDING;
 
 
 /***************************************************************/

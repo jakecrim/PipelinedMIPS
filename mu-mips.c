@@ -231,7 +231,13 @@ void handle_command() {
 			break;
 		case 'P':
 		case 'p':
-			print_program(); 
+			print_program(CURRENT_STATE.PC); 
+			break;
+		case 'F':
+		case 'f':
+			if(scanf("%d", &ENABLE_FORWARDING) != 1)
+				break;
+			ENABLE_FORWARDING == 0 ? printf("Forwarding OFF\n") : printf("Forwarding ON\n");
 			break;
 		default:
 			printf("Invalid Command.\n");
@@ -495,11 +501,39 @@ void ID()
 	printf("-Instruction Decode- \n");
 	ID_EX.IR = IF_ID.IR;
 
-	uint32_t rs, rt, immediate;
+	uint32_t rs, rt, rd_EX_MEM, rd_MEM_WB, immediate;
 
 	rs = (IF_ID.IR & 0x03E00000) >> 21;
 	rt = (IF_ID.IR & 0x001F0000) >> 16;
 	immediate = IF_ID.IR & 0x0000FFFF;
+
+	/* Check for Data Hazards */
+	rd_EX_MEM = (EX_MEM.IR & 0x0000F800) >> 11;
+	rd_MEM_WB = (MEM_WB.IR & 0x0000F800) >> 11;
+
+	if((1 != 0) && (rd_EX_MEM != 0))
+	{
+		// if the destination register of ex_mem is the same as the current 
+		// rs or rt register then we have a data hazard
+		if(rd_EX_MEM == rs)
+			ID_EX.hazardFlag = true;
+		if(rd_EX_MEM == rt)
+			ID_EX.hazardFlag = true;
+	}
+	if((1 != 0) && (rd_MEM_WB != 0))
+	{
+		// if the destination register of mem_wb is the same as the current 
+		// rs or rt register then we have a data hazard 
+		if(rd_MEM_WB== rs)
+			ID_EX.hazardFlag = true;
+		if(rd_MEM_WB == rt)
+			ID_EX.hazardFlag = true;
+	}
+
+	// Engage stalling or bubbles?
+
+	/* End of Data Hazard Section */
+
 
 	ID_EX.A = CURRENT_STATE.REGS[rs]; 
 	ID_EX.B = CURRENT_STATE.REGS[rt];
@@ -761,6 +795,9 @@ int main(int argc, char *argv[]) {
 		printf("Error: You should provide input file.\nUsage: %s <input program> \n\n",  argv[0]);
 		exit(1);
 	}
+
+	// default this to zero
+	ENABLE_FORWARDING = 0;
 
 	strcpy(prog_file, argv[1]);
 	initialize();
