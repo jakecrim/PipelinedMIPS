@@ -511,27 +511,44 @@ void ID()
 	rd_EX_MEM = (EX_MEM.IR & 0x0000F800) >> 11;
 	rd_MEM_WB = (MEM_WB.IR & 0x0000F800) >> 11;
 
-	if((1 != 0) && (rd_EX_MEM != 0))
+	// 1 instruction before
+	if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0))
 	{
 		// if the destination register of ex_mem is the same as the current 
 		// rs or rt register then we have a data hazard
 		if(rd_EX_MEM == rs)
+		{
 			ID_EX.hazardFlag = true;
+			// stall twice
+		}
 		if(rd_EX_MEM == rt)
+		{
 			ID_EX.hazardFlag = true;
+			// stall twice
+		}
 	}
-	if((1 != 0) && (rd_MEM_WB != 0))
+	// 2 instructions before
+	if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB != 0))
 	{
 		// if the destination register of mem_wb is the same as the current 
 		// rs or rt register then we have a data hazard 
 		if(rd_MEM_WB== rs)
+		{
 			ID_EX.hazardFlag = true;
+			// stall once
+		}
 		if(rd_MEM_WB == rt)
+		{
 			ID_EX.hazardFlag = true;
+			// stall once
+		}
 	}
 
 	// Engage stalling or bubbles?
-
+	if(ID_EX.hazardFlag == true)
+	{
+		printf("Hazard Detected \n");
+	}
 	/* End of Data Hazard Section */
 
 
