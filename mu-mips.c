@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
 #include <assert.h>
@@ -69,7 +70,7 @@ void mem_write_32(uint32_t address, uint32_t value)
 /***************************************************************/
 void cycle() {                                                
 	handle_pipeline();
-	CURRENT_STATE.PC = NEXT_STATE.PC;
+	CURRENT_STATE = NEXT_STATE;
 	CYCLE_COUNT++;
 }
 
@@ -230,7 +231,7 @@ void handle_command() {
 			break;
 		case 'P':
 		case 'p':
-			print_program(CURRENT_STATE.PC); 
+			print_program(); 
 			break;
 		default:
 			printf("Invalid Command.\n");
@@ -312,39 +313,19 @@ void load_program() {
 void handle_pipeline()
 {
 	/*INSTRUCTION_COUNT should be incremented when instruction is done*/
-	/*Since we do not have branch/jump instructions, INSTRUCTION_COUNT should be incremented in WB stage */
-
-	printf("|		CYCLE			|\n");
-
-	if(CURRENT_STATE.PC >= 0x00400010)
-	{
-		printf("*******************\n");	
-		WB();
-		INSTRUCTION_COUNT++;
-	}
-
-	if(CURRENT_STATE.PC >= 0x0040000C)
-	{
-		printf("*******************\n");	
-		MEM();
-	}
-
-	if(CURRENT_STATE.PC >= 0x00400008)
-	{
-		printf("*******************\n");	
-		EX();
-	}
-
-	if(CURRENT_STATE.PC >= 0x00400004)
-	{
-		printf("*******************\n");	
-		ID();
-	}
-
-	printf("*******************\n");	  
+	/*Since we do not have branch/jump instructions, INSTRUCTION_COUNT should be incremented in WB stage */	
+	printf("|		cycle			|\n");
+	printf("*******************\n");	
+	WB();
+	printf("*******************\n");	
+	MEM();
+	printf("*******************\n");	
+	EX();
+	printf("*******************\n");	
+	ID();
+	printf("*******************\n");	
 	IF();
-
-	printf("*******************\n \n");	
+	printf("*******************\n");	
 }
 
 /************************************************************/
@@ -353,31 +334,48 @@ void handle_pipeline()
 void WB()
 {
 	/*IMPLEMENT THIS*/
-	printf("-Writeback- \n");
+	printf("-Write Back- \n");
 
-	// strcpy(MEM_WB.instructionType, "rr"); // for testing if statements
+	uint32_t rt, rd, opcode;
+	// getting necessary pieces of the instruction for execution
+	opcode = (MEM_WB.IR & 0xFC000000) >> 26;
+	rt = (MEM_WB.IR & 0x001F0000) >> 16;
+	rd = (MEM_WB.IR & 0x0000F800) >> 11;
 
-
-	if (strcmp(MEM_WB.instructionType, "rr") == 0)
-	{															//register-register instructions 
-		CURRENT_STATE.REGS[MEM_WB.A] = MEM_WB.ALUOutput;		//assuming A is rd 
-		printf("Register-Register Instruction\n");
-		printf("Result: 0x%08X \n ", CURRENT_STATE.REGS[MEM_WB.A]);
-
-	}	 														
-	else if (strcmp(MEM_WB.instructionType, "ri") == 0)
-	{															//register-immediate instructions 
-		CURRENT_STATE.REGS[MEM_WB.B] = MEM_WB.ALUOutput; 		//assuming B is rt
-		printf("Register-Immediate Instruction \n");
-		printf("Result: 0x%08X \n ", CURRENT_STATE.REGS[MEM_WB.B]);
-	}	
-	else if (strcmp(MEM_WB.instructionType, "ls") == 0)
-	{															//load/store instructions
-		CURRENT_STATE.REGS[MEM_WB.B] = MEM_WB.LMD; 				//assuming B is rt
-		printf("Load/Store Instruction \n");
+	// If opcode = 0, its a register register writeback scenario
+	if(opcode == 0x0)
+	{
+		printf("register to register writeback \n");
+		NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
 	}
-	INSTRUCTION_COUNT = INSTRUCTION_COUNT + 4;
-	printf("****Instruction Complete****\n");
+	else
+	{
+		switch (opcode)
+		{
+			case 0x08:  // ADDI
+				NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+				printf("ADDI WRITEBACK \n");
+				break;
+			case 0x09: //ADDIU
+				NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+				printf("ADDIU WRITEBACK \n");
+				break;
+			case 0x0E: //XORI
+				NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+				printf("XORI WRITEBACK \n");
+				break;
+			case 0x0F: //LUI 
+				NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+				printf("LUI WRITEBACK \n");
+				break;
+			case 0x23: //LW
+				NEXT_STATE.REGS[rt] = MEM_WB.LMD;
+				printf("LW WRITEBACK \n");
+				break;
+
+		}
+	}
+
 }
 
 /************************************************************/
@@ -385,37 +383,25 @@ void WB()
 /************************************************************/
 void MEM()
 {
-	/*W.I.P.*/
+	/*IMPLEMENT THIS*/
 	printf("-Memory Access- \n");
 	MEM_WB.IR = EX_MEM.IR;
 	MEM_WB.A = EX_MEM.A;
 	MEM_WB.B = EX_MEM.B;
 	MEM_WB.ALUOutput = EX_MEM.ALUOutput;
-	memcpy(MEM_WB.instructionType, EX_MEM.instructionType, sizeof(EX_MEM.instructionType));
-	
-	/* TESTING RELATED - STUFF NOT FIGURED OUT IN MEETING WITH POONEH YET*/
-	// uint32_t testAddr = 0x10010000;
-	// printf("Current PC: %08X \n", CURRENT_STATE.PC);
-	// printf("ALU OUT: %08X \n", EX_MEM.ALUOutput);
-	//char instructionType= "l";
 
-	// MEM_WB.LMD = mem_read_32(0x00000000);
 
-	// load from memory if not an immediate type
-	if(EX_MEM.instruction[0] == 'l')
+
+	if(EX_MEM.loadFlag)
 	{
-		// MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
-		// MEM_WB.LMD = mem_read_32(testAddr);
+		printf("Memory Load \n");
+		MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
 	}
-	// store
-	else if(EX_MEM.instruction[0] == 's' && EX_MEM.instruction[1] == 't')
+	else if(EX_MEM.storeFlag)
 	{
-		mem_write_32(EX_MEM.ALUOutput, EX_MEM.B);	
-		// mem_write_32(testAddr, EX_MEM.B);	
+		printf("Memory Store \n");
+		mem_write_32(EX_MEM.ALUOutput, EX_MEM.B);
 	}
-	// just for testing...
-	else
-		printf("Skipping MEM: \n");
 	
 
 }
@@ -425,279 +411,76 @@ void MEM()
 /************************************************************/
 void EX()
 {
-	/*W.I.P.*/
+	/*IMPLEMENT THIS*/
 	printf("-Execution- \n");
 	EX_MEM.IR = ID_EX.IR;
 	EX_MEM.A = ID_EX.A;
 	EX_MEM.B = ID_EX.B;
-	// holds instruction type *using ls as testing*
-	uint32_t opcode, function, addr;
 
-	uint64_t product, p1, p2;
+	uint32_t opcode, function;
+
+	// set to false by default 
+	EX_MEM.loadFlag = false;
+	EX_MEM.storeFlag = false;
 
 	// getting necessary pieces of the instruction for execution
 	opcode = (ID_EX.IR & 0xFC000000) >> 26;
 	function = ID_EX.IR & 0x0000003F;
 
+
 	if(opcode == 0x00)
 	{
+		printf("Function Code: 0x%08X \n", function);
 		switch(function)
 		{
-			//ADD
-			case 0x20:
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.A] + CURRENT_STATE.REGS[ID_EX.B];
+			case 0x20: // ADD
+				EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
 				printf("ADD Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
 				break;
-
-			//ADDU
-			case 0x21:
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.B] + CURRENT_STATE.REGS[ID_EX.A];
-				printf("ADDU Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
-				break;			
-			
-			//NOR
-			case 0x27:
-				EX_MEM.ALUOutput = ~(CURRENT_STATE.REGS[ID_EX.A] | CURRENT_STATE.REGS[ID_EX.B]);
-				printf("NOR Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
-				break;
-
-			//SLT
-			case 0x2A:
-				if(CURRENT_STATE.REGS[ID_EX.A] < CURRENT_STATE.REGS[ID_EX.B]){
-					EX_MEM.ALUOutput = 0x1;
-				}
-				else{
-					EX_MEM.ALUOutput = 0x0;
-				}
-				printf("SLT Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
-				break;	
-
-			//SLL
-			case 0x00:
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.B] << EX_MEM.C;
-				printf("SLL Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
-				break;	
-
-			//SUB
-			case 0x22:
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] - CURRENT_STATE.REGS[EX_MEM.B];
-				printf("SUB Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
-				break;
-
-			//SUBU
-			case 0x23:
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] - CURRENT_STATE.REGS[EX_MEM.B];
-				printf("SUBU Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
-				break;
-
-			//MULT 
-			case 0x18:
-				if((CURRENT_STATE.REGS[EX_MEM.A] & 0x80000000) == 0x80000000){
-					p1 = 0xFFFFFFFF00000000 | CURRENT_STATE.REGS[EX_MEM.A];
-				}else{
-					p1 = 0x00000000FFFFFFFF | CURRENT_STATE.REGS[EX_MEM.A];
-				}
-				if((CURRENT_STATE.REGS[EX_MEM.B] & 0x80000000) == 0x80000000){
-					p2 = 0xFFFFFFFF00000000 | CURRENT_STATE.REGS[EX_MEM.B];
-				}else{
-					p2 = 0x00000000FFFFFFFF | CURRENT_STATE.REGS[EX_MEM.B];
-				}
-				product = p1 * p2;
-				NEXT_STATE.LO = (product & 0x00000000FFFFFFFF);
-				NEXT_STATE.HI = (product & 0xFFFFFFFF00000000)>>32;
-				printf("MULT LO Result: 0x%08X \n", NEXT_STATE.LO);
-				printf("MULT HI Result: 0x%08X \n", NEXT_STATE.HI);
-				strcpy(EX_MEM.instructionType, "rr");				
-				break;
-
-			//MULTU
-			case 0x19:
-				product = (uint64_t)CURRENT_STATE.REGS[EX_MEM.A] * (uint64_t)CURRENT_STATE.REGS[EX_MEM.B];
-				NEXT_STATE.LO = (product & 0x00000000FFFFFFFF);
-				NEXT_STATE.HI = (product & 0xFFFFFFFF00000000)>>32;
-				printf("MULTU LO Result: 0x%08X \n", NEXT_STATE.LO);
-				printf("MULTU HI Result: 0x%08X \n", NEXT_STATE.HI);
-				strcpy(EX_MEM.instructionType, "rr");
-				break;
-
-			//DIV
-			case 0x1A:
-				if(CURRENT_STATE.REGS[EX_MEM.B] != 0)
-				{
-					NEXT_STATE.LO = (int32_t)CURRENT_STATE.REGS[EX_MEM.A] / (int32_t)CURRENT_STATE.REGS[EX_MEM.B];
-					NEXT_STATE.HI = (int32_t)CURRENT_STATE.REGS[EX_MEM.A] % (int32_t)CURRENT_STATE.REGS[EX_MEM.B];
-				}
-				printf("DIV Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
-				break;
-
-			//DIVU
-			case 0x1B:
-				if(CURRENT_STATE.REGS[EX_MEM.B] != 0)
-				{
-					NEXT_STATE.LO = CURRENT_STATE.REGS[EX_MEM.A] / CURRENT_STATE.REGS[EX_MEM.B];
-					NEXT_STATE.HI = CURRENT_STATE.REGS[EX_MEM.A] % CURRENT_STATE.REGS[EX_MEM.B];
-				}
-				printf("DIVU Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
-				break;		
-
-			//AND
-			case 0x24:
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] & CURRENT_STATE.REGS[EX_MEM.B];
+			case 0x24: // AND
+				EX_MEM.ALUOutput = ID_EX.A & ID_EX.B;
 				printf("AND Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
 				break;
-
-			//OR
-			case 0x25:
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] | CURRENT_STATE.REGS[EX_MEM.B];
-				printf("OR Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
-				break;
-
-			//XOR
-			case 0x26:
+			case 0x26: // XOR
 				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] ^ CURRENT_STATE.REGS[EX_MEM.B];
 				printf("XOR Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");
 				break;	
-
-			//SRL
-			case 0x02:
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.B] >> EX_MEM.C;
-				printf("SRL Result: 0x%08X \n", EX_MEM.ALUOutput);		
-				strcpy(EX_MEM.instructionType, "rr");
-				break;
-
-			//SRA
-			case 0x03:
-				EX_MEM.ALUOutput = ~(~CURRENT_STATE.REGS[EX_MEM.B] >> EX_MEM.C);
-				printf("SRA Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");	
+			case 0x0C: // SYSCALL
+				printf("SYSCALL \n");
+				RUN_FLAG = false;
 				break;	
-
-			//MFHI
-			case 0x10:
-				EX_MEM.ALUOutput = CURRENT_STATE.HI;
-				printf("MFHI Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");	
-				break;
-
-			//MFLO
-			case 0x12:
-				EX_MEM.ALUOutput = CURRENT_STATE.LO;
-				printf("MFLO Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "rr");	
-				break;
-
-			//MTHI
-			case 0x11:
-				NEXT_STATE.HI = CURRENT_STATE.REGS[EX_MEM.A];
-				printf("MTHI Result: 0x%08X \n", NEXT_STATE.HI);
-				strcpy(EX_MEM.instructionType, "rr");	
-				break;
-
-			//MTLO
-			case 0x13:
-				NEXT_STATE.LO = CURRENT_STATE.REGS[EX_MEM.A];
-				printf("MTLO Result: 0x%08X \n", NEXT_STATE.LO);
-				strcpy(EX_MEM.instructionType, "rr");	
-				break;
 		}
 	}
 	else
 	{
-		switch (opcode)
-		{	
+		switch(opcode)
+		{
 			case 0x08:  // ADDI
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.A] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "ri");
-
 				break;
 			case 0x09: //ADDIU
-				// printf("Test 0x%08X \n", ID_EX.A);
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[CURRENT_STATE.REGS[ID_EX.A]] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "ri");
-				break;
-			case 0x0A: //SLTI
-				if ( (  (int32_t)CURRENT_STATE.REGS[ID_EX.A] - (int32_t)( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF))) < 0){
-					EX_MEM.ALUOutput = 0x1;
-				}else{
-					EX_MEM.ALUOutput = 0x0;
-				}
-				strcpy(EX_MEM.instructionType, "ri");
-				break;
-			case 0x0C: //ANDI
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.A] & (ID_EX.imm & 0x0000FFFF);
-				strcpy(EX_MEM.instructionType, "ri");
-				break;
-			case 0x0D: //ORI
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.A] | (ID_EX.imm & 0x0000FFFF);
-				strcpy(EX_MEM.instructionType, "ri");
 				break;
 			case 0x0E: //XORI
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.A] ^ (ID_EX.imm & 0x0000FFFF);
-				strcpy(EX_MEM.instructionType, "ri");
+				EX_MEM.ALUOutput = ID_EX.A ^ (ID_EX.imm & 0x0000FFFF);
 				break;
 			case 0x0F: //LUI 
 				EX_MEM.ALUOutput = ID_EX.imm << 16;
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-				strcpy(EX_MEM.instructionType, "ri");
-				break;
-			case 0x20: //LB ?
-				strcpy(EX_MEM.instruction,"lb");
-				addr = ( CURRENT_STATE.REGS[ID_EX.A] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
-				printf("addr: 0x%08X \n", addr);
-				strcpy(EX_MEM.instructionType, "ls");
-				break;
-			case 0x21: //LH
-				strcpy(EX_MEM.instruction,"lh");
-				addr = ( CURRENT_STATE.REGS[ID_EX.A] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
-				strcpy(EX_MEM.instructionType, "ls");
 				break;
 			case 0x23: //LW
-				strcpy(EX_MEM.instruction,"lw");
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[ID_EX.A] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Base: 0x%08x \n", ID_EX.A);
-				strcpy(EX_MEM.instructionType, "ls");
-				break;	
-			case 0x28: //SB
-				strcpy(EX_MEM.instruction,"sb");
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-				addr = CURRENT_STATE.REGS[ID_EX.A] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
-				strcpy(EX_MEM.instructionType, "ls");
-				break;	
-			case 0x29: //SH
-				strcpy(EX_MEM.instruction,"sh");
-				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-				addr = CURRENT_STATE.REGS[ID_EX.A] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
-				strcpy(EX_MEM.instructionType, "ls");
+				EX_MEM.loadFlag = true;
 				break;
 			case 0x2B: //SW
-				strcpy(EX_MEM.instruction,"sw");
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
-				addr = CURRENT_STATE.REGS[ID_EX.A] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
-				strcpy(EX_MEM.instructionType, "ls");
-				// printf("addr: 0x%08X \n", addr);
+				EX_MEM.storeFlag = true;
 				break;
-
-
-			default:
-				printf("Instruction not implemented! \n");
-				break;
-			
 		}
-
 	}
 	
 
@@ -708,32 +491,18 @@ void EX()
 /************************************************************/
 void ID()
 {
+	/*IMPLEMENT THIS*/
 	printf("-Instruction Decode- \n");
 	ID_EX.IR = IF_ID.IR;
-	
-	uint32_t rs, rt, immediate, sa;
+
+	uint32_t rs, rt, immediate;
+
 	rs = (IF_ID.IR & 0x03E00000) >> 21;
 	rt = (IF_ID.IR & 0x001F0000) >> 16;
-	// rd = (IF_ID.IR & 0x0000F800) >> 11;
-	sa = (IF_ID.IR & 0x000007C0) >> 6;
 	immediate = IF_ID.IR & 0x0000FFFF;
-	// target = IF_ID.IR & 0x03FFFFFF;
-	printf("rs: 0x%08x rt: 0x%08x \n", rs, rt);
-	
-	// //I added this. seems redundant but wanted to utilize actual mips registers
-	// ID_EX.A = rs;
-	// CURRENT_STATE.REGS[rt] = rt;
 
-
-	// // read from register file
-	// ID_EX.A = CURRENT_STATE.REGS[rs]; //probably could just do ID_EX.A = (IF_ID.IR & 0xFC000000) >> 26
-	// ID_EX.B = CURRENT_STATE.REGS[rt];
-
-	ID_EX.A = rs;
-	ID_EX.B = rt;
-	ID_EX.C = sa;
-
-
+	ID_EX.A = CURRENT_STATE.REGS[rs]; 
+	ID_EX.B = CURRENT_STATE.REGS[rt];
 
 	// sign extend immediate
 	// if the 16th bit is set, sign extend	
@@ -744,8 +513,7 @@ void ID()
 	}
 	else
 		ID_EX.imm = immediate;
-	/* VERIFY LATER THAT SIGN EXTENDING IS WORKING */
-	printf("Immediate Signed: 0x%08x \n", ID_EX.imm);
+
 }
 
 /************************************************************/
@@ -753,14 +521,13 @@ void ID()
 /************************************************************/
 void IF()
 {
-	printf("-Instruction Fetch- \n");
-
-	IF_ID.PC = CURRENT_STATE.PC;
 	IF_ID.IR = mem_read_32(CURRENT_STATE.PC);
+	IF_ID.PC = CURRENT_STATE.PC + 4;
 	printf("Current Instruction: 0x%08X \n", IF_ID.IR);
+
+	// increment PC?
 	NEXT_STATE.PC = CURRENT_STATE.PC + 4;
 }
-
 
 
 /************************************************************/
@@ -952,14 +719,13 @@ void print_program(uint32_t addr){
 /* Print the current pipeline                                                                                    */ 
 /************************************************************/
 void show_pipeline(){
-	/*IMPLEMENT THIS*/
 	printf("\n---Pipeline Contents---\n");
 
 	//IF/ID pipeline register
 	printf("PC: 0x%08X \n", CURRENT_STATE.PC);
 	printf("IF/ID.IR 0x%08X \n", IF_ID.IR);
 	printf("IF/ID.PC 0x%08X \n", IF_ID.PC);
-	print_program(IF_ID.PC);
+	print_program(IF_ID.PC - 4); // -4 because this PC val has already been incremented
 
 	printf("\n");
 
@@ -992,7 +758,7 @@ int main(int argc, char *argv[]) {
 	printf("**************************\n\n");
 	
 	if (argc < 2) {
-		printf("Error: No input file provided.\nUsage: %s <input program> \n\n",  argv[0]);
+		printf("Error: You should provide input file.\nUsage: %s <input program> \n\n",  argv[0]);
 		exit(1);
 	}
 

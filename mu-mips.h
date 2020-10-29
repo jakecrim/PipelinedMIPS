@@ -40,9 +40,9 @@ mem_region_t MEM_REGIONS[] = {
 
 typedef struct CPU_State_Struct {
 
-  uint32_t PC;		                /* program counter */
-  uint32_t REGS[MIPS_REGS];			/* register file. */
-  uint32_t HI, LO;                  /* special regs for mult/div. */
+  uint32_t PC;		                   /* program counter */
+  uint32_t REGS[MIPS_REGS]; /* register file. */
+  uint32_t HI, LO;                          /* special regs for mult/div. */
 } CPU_State;
 
 typedef struct CPU_Pipeline_Reg_Struct{
@@ -50,12 +50,11 @@ typedef struct CPU_Pipeline_Reg_Struct{
 	uint32_t IR;
 	uint32_t A;
 	uint32_t B;
-	uint32_t C;
 	uint32_t imm;
 	uint32_t ALUOutput;
 	uint32_t LMD;
-	char instruction[5];
-	char instructionType[2];
+	bool loadFlag;
+	bool storeFlag;
 	
 } CPU_Pipeline_Reg;
 
