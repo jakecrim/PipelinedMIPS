@@ -531,11 +531,13 @@ void ID()
 		{
 			ID_EX.hazardFlag = true;
 			// stall twice
+			stallCounter+=2;
 		}
 		if(rd_EX_MEM == rt)
 		{
 			ID_EX.hazardFlag = true;
 			// stall twice
+			stallCounter+=2;
 		}
 	}
 	// 2 instructions before
@@ -547,11 +549,13 @@ void ID()
 		{
 			ID_EX.hazardFlag = true;
 			// stall once
+			stallCounter++;
 		}
 		if(rd_MEM_WB == rt)
 		{
 			ID_EX.hazardFlag = true;
 			// stall once
+			stallCounter++;
 		}
 	}
 
@@ -826,6 +830,7 @@ int main(int argc, char *argv[]) {
 
 	// default this to zero
 	ENABLE_FORWARDING = 0;
+	stallCounter = 0;
 
 	strcpy(prog_file, argv[1]);
 	initialize();
