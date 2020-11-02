@@ -391,6 +391,11 @@ void MEM()
 {
 	/*IMPLEMENT THIS*/
 	printf("-Memory Access- \n");
+
+	// Retrieve the incomming instruction's REG_WRITE status
+	// 	before it is set back to true by defaultin EX() stage	
+	REG_WRITE_MEM_WB = REG_WRITE_EX_MEM;
+
 	MEM_WB.IR = EX_MEM.IR;
 	MEM_WB.A = EX_MEM.A;
 	MEM_WB.B = EX_MEM.B;
@@ -429,6 +434,9 @@ void EX()
 	EX_MEM.loadFlag = false;
 	EX_MEM.storeFlag = false;
 
+	// set true by default
+	REG_WRITE_EX_MEM = true;
+
 	// getting necessary pieces of the instruction for execution
 	opcode = (ID_EX.IR & 0xFC000000) >> 26;
 	function = ID_EX.IR & 0x0000003F;
@@ -454,6 +462,7 @@ void EX()
 			case 0x0C: // SYSCALL
 				printf("SYSCALL \n");
 				RUN_FLAG = false;
+				REG_WRITE_EX_MEM = false;
 				break;	
 		}
 	}
@@ -485,9 +494,11 @@ void EX()
 				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				EX_MEM.storeFlag = true;
+				REG_WRITE_EX_MEM = false;
 				break;
 		}
 	}
+
 	
 
 }
