@@ -74,7 +74,7 @@ int ENABLE_FORWARDING;
 int REG_WRITE_EX_MEM;
 int REG_WRITE_MEM_WB;
 
-/*Forwarding Flags*/
+/*Forwarding Flags*/ 
 uint32_t ForwardA;
 uint32_t ForwardB;
 
