@@ -73,6 +73,7 @@ uint32_t PROGRAM_SIZE; /*in words*/
 int ENABLE_FORWARDING;
 int REG_WRITE_EX_MEM;
 int REG_WRITE_MEM_WB;
+int stallCounter;
 
 
 /***************************************************************/
