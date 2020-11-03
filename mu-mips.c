@@ -522,6 +522,30 @@ void ID()
 	rd_EX_MEM = (EX_MEM.IR & 0x0000F800) >> 11;
 	rd_MEM_WB = (MEM_WB.IR & 0x0000F800) >> 11;
 
+	//forwarding conditions
+	if(ENABLE_FORWARDING == 1)
+	{	
+		//forward from EX stage	
+		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM !=0))
+		{
+			ForwardA == 10;
+		}
+		if((REG_WRITE_EX_MEM != 0) && (rt_EX_MEM !=0))
+		{
+			ForwardB == 10;
+		}
+		//forward from MEM stage
+		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB !=0) && !((REG_WRITE_EX_MEM !=0) && (rd_EX_MEM !=0) && (rd_EX_MEM == rs_ID_EX)) && (rd_MEM_WB == rs_ID_EX))
+		{
+			ForwardA == 01;
+		}
+		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB !=0) && !((REG_WRITE_EX_MEM !=0) && (rd_EX_MEM !=0) && (rd_EX_MEM == rt_ID_EX)) && (rd_MEM_WB == rt_ID_EX))
+		{
+			ForwardB == 01;
+		}
+//*in progress* create switch statement to properly forward based on forward flags		
+
+
 	// 1 instruction before
 	if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0))
 	{
