@@ -348,6 +348,8 @@ void WB()
 	rt = (MEM_WB.IR & 0x001F0000) >> 16;
 	rd = (MEM_WB.IR & 0x0000F800) >> 11;
 
+	writeBackValue = MEM_WB.ALUOutput;
+
 	// If opcode = 0, its a register register writeback scenario
 	if(opcode == 0x0)
 	{
@@ -424,7 +426,10 @@ void EX()
 {
 	/*IMPLEMENT THIS*/
 	printf("-Execution- \n");
+
+	// only retreive new instruction if we aren't stalling
 	EX_MEM.IR = ID_EX.IR;
+		
 	EX_MEM.A = ID_EX.A;
 	EX_MEM.B = ID_EX.B;
 
@@ -508,123 +513,213 @@ void EX()
 /************************************************************/
 void ID()
 {
-	/*IMPLEMENT THIS*/
+/*IMPLEMENT THIS*/
 	printf("-Instruction Decode- \n");
-	ID_EX.IR = IF_ID.IR;
 
-	uint32_t rs, rt, rd_EX_MEM, rd_MEM_WB, immediate;
+	uint32_t rs = 0, rt = 0, opcode_EX_MEM = 0, opcode_MEM_WB = 0, rd_EX_MEM = 0, rd_MEM_WB = 0, immediate = 0;
 
-	rs = (IF_ID.IR & 0x03E00000) >> 21;
-	rt = (IF_ID.IR & 0x001F0000) >> 16;
-	immediate = IF_ID.IR & 0x0000FFFF;
+	if(stallCounter != 0)
+		stallCounter--;
 
-	/* Check for Data Hazards */
-	rd_EX_MEM = (EX_MEM.IR & 0x0000F800) >> 11;
-	rd_MEM_WB = (MEM_WB.IR & 0x0000F800) >> 11;
-
-	//forwarding conditions
-	if(ENABLE_FORWARDING == true)
-	{	
-		//forward from EX stage	
-		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM !=0))
-		{
-			ForwardA == 0x10;
-		}
-		if((REG_WRITE_EX_MEM != 0) && (rt_EX_MEM !=0))
-		{
-			ForwardB == 0x10;
-		}
-		//forward from MEM stage
-		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB !=0) && !((REG_WRITE_EX_MEM !=0) && (rd_EX_MEM !=0) && (rd_EX_MEM == rs_ID_EX)) && (rd_MEM_WB == rs_ID_EX))
-		{
-			ForwardA == 0x01;
-		}
-		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB !=0) && !((REG_WRITE_EX_MEM !=0) && (rd_EX_MEM !=0) && (rd_EX_MEM == rt_ID_EX)) && (rd_MEM_WB == rt_ID_EX))
-		{
-			ForwardB == 0x01;
-		}
-//*in progress* create switch statement to properly forward based on forward flags		
-
-	//apply forwarding
-	switch(ForwardA)
+	/* STALLING SOLUTION WHEN FORWARDING DISABLED */
+	if(!ENABLE_FORWARDING)
 	{
-		case 0x10:
-		//forward rd value from EX_MEM (after ALU Output)
-		rd_ID_EX = rd_EX_MEM; 
-			break;
-		case 0x01:
-		//forward rd value from MEM_WB (after data memory)
-		rd_ID_EX = rd_MEM_WB;
+
+		if(stallCounter == 0)
+		{
+			ID_EX.IR = IF_ID.IR;
+			printf("decoding... \n");
+			rs = (IF_ID.IR & 0x03E00000) >> 21;
+			rt = (IF_ID.IR & 0x001F0000) >> 16;
+
+			immediate = IF_ID.IR & 0x0000FFFF;
+
+			// used for finding data hazards
+			opcode_EX_MEM = (EX_MEM.IR & 0xFC000000) >> 26;
+			opcode_MEM_WB = (MEM_WB.IR & 0xFC000000) >> 26;
+
+			// If its an immediate instruction, "rd" is really rt 
+			if(opcode_EX_MEM == 0x0)
+			{
+				rd_EX_MEM = (EX_MEM.IR & 0x0000F800) >> 11;
+			}
+			else
+			{
+				rd_EX_MEM = (EX_MEM.IR & 0x001F0000) >> 16;
+			}
+
+			if(opcode_MEM_WB == 0x0)
+			{
+				rd_MEM_WB = (MEM_WB.IR & 0x0000F800) >> 11;
+			}
+			else
+			{
+				rd_MEM_WB = (MEM_WB.IR & 0x001F0000) >> 16;
+			}
+
+
+
+			/* DATA HAZARD CHECK*/
+			// 1 instruction before
+			if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0))
+			{
+				// if the destination register of ex_mem is the same as the current 
+				// rs or rt register then we have a data hazard
+				printf("rd_EX_MEM: 0x%08X \n", rd_EX_MEM);
+				printf("rd_MEM_WB: 0x%08X \n", rd_MEM_WB);
+				printf("rs: 0x%08X \n", rs);
+				printf("rt: 0x%08X \n", rt);
+				if(rd_EX_MEM == rs)
+				{
+					ID_EX.hazardFlag = true;
+					// rsHazard =  true;
+					// stall twice
+					stallCounter+=2;
+				}
+				if(rd_EX_MEM == rt)
+				{
+					ID_EX.hazardFlag = true;
+					// rtHazard = true;
+					// stall twice
+					stallCounter+=2;
+				}
+			}
+			// 2 instructions before
+			if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB != 0))
+			{
+				// if the destination register of mem_wb is the same as the current 
+				// rs or rt register then we have a data hazard 
+				if(rd_MEM_WB == rs)
+				{
+					ID_EX.hazardFlag = true;
+					// stall once
+					stallCounter++;
+				}
+				if(rd_MEM_WB == rt)
+				{
+					ID_EX.hazardFlag = true;
+					// stall once
+					stallCounter++;
+				}
+			}
+
+			// If there is no data hazard, pass on the register readings and immediate 
+			if(stallCounter == 0)
+			{
+				ID_EX.A = CURRENT_STATE.REGS[rs]; 
+				ID_EX.B = CURRENT_STATE.REGS[rt];
+
+				// if(oneCycleAfterHazard)
+				// 	ID_EX.? = writeBackValue;
+
+				printf("Instruction ID: 0x%08X \n", IF_ID.IR);
+				printf("rs: 0x%08X \n", rs);
+				printf("rt: 0x%08X \n", rt);
+				printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rs]);
+				printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rt]);
+
+				// sign extend immediate
+				// if the 16th bit is set, sign extend	
+				if( immediate & 0x00008000)
+				{
+					printf("SET \n");
+					ID_EX.imm = immediate | 0xFFFF0000;
+				}
+				else
+					ID_EX.imm = immediate;
+
+			}
+			// otherwise only pass on zeros
+			else
+			{
+				printf("Hazard Detected \n");
+				ID_EX.IR = 0;
+				ID_EX.A = 0;
+				ID_EX.B = 0;
+				ID_EX.imm = 0;
+			}
+
+		}
 	}
-	switch(ForwardB)
-	{
-		case 0x10:
-		//forward rt value from EX_MEM (after ALU Output)
-		rt_ID_EX = rt_EX_MEM;
-			break;
-		case: 0x01:
-		//forward rt value from MEM_WB (after data memory)
-		rt_ID_EX = rt_MEM_WB;
-	} 
 
-
-	// 1 instruction before
-	if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0))
+	
+	/* FORWARDING SECTION*/
+	if(ENABLE_FORWARDING)
 	{
-		// if the destination register of ex_mem is the same as the current 
-		// rs or rt register then we have a data hazard
-		if(rd_EX_MEM == rs)
+		ID_EX.IR = IF_ID.IR;
+		printf("decoding... \n");
+		rs = (IF_ID.IR & 0x03E00000) >> 21;
+		rt = (IF_ID.IR & 0x001F0000) >> 16;
+
+		immediate = IF_ID.IR & 0x0000FFFF;
+
+		// used for finding data hazards
+		opcode_EX_MEM = (EX_MEM.IR & 0xFC000000) >> 26;
+		opcode_MEM_WB = (MEM_WB.IR & 0xFC000000) >> 26;
+
+		// If its an immediate instruction, "rd" is really rt 
+		if(opcode_EX_MEM == 0x0)
 		{
-			ID_EX.hazardFlag = true;
-			// stall twice
-			stallCounter+=2;
+			rd_EX_MEM = (EX_MEM.IR & 0x0000F800) >> 11;
 		}
-		if(rd_EX_MEM == rt)
+		else
 		{
-			ID_EX.hazardFlag = true;
-			// stall twice
-			stallCounter+=2;
+			rd_EX_MEM = (EX_MEM.IR & 0x001F0000) >> 16;
+		}
+
+		if(opcode_MEM_WB == 0x0)
+		{
+			rd_MEM_WB = (MEM_WB.IR & 0x0000F800) >> 11;
+		}
+		else
+		{
+			rd_MEM_WB = (MEM_WB.IR & 0x001F0000) >> 16;
+		}
+
+		// FORWARDING SECTION
+
+
+
+
+
+		// Normal ID() Lab 3 Stuff Section
+		// If there is no data hazard, pass on the register readings and immediate 
+		if(stallCounter == 0)
+		{
+			ID_EX.A = CURRENT_STATE.REGS[rs]; 
+			ID_EX.B = CURRENT_STATE.REGS[rt];
+
+			// if(oneCycleAfterHazard)
+			// 	ID_EX.? = writeBackValue;
+
+			printf("Instruction ID: 0x%08X \n", IF_ID.IR);
+			printf("rs: 0x%08X \n", rs);
+			printf("rt: 0x%08X \n", rt);
+			printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rs]);
+			printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rt]);
+
+			// sign extend immediate
+			// if the 16th bit is set, sign extend	
+			if( immediate & 0x00008000)
+			{
+				printf("SET \n");
+				ID_EX.imm = immediate | 0xFFFF0000;
+			}
+			else
+				ID_EX.imm = immediate;
+
+		}
+		// otherwise only pass on zeros
+		else
+		{
+			printf("Hazard Detected \n");
+			ID_EX.IR = 0;
+			ID_EX.A = 0;
+			ID_EX.B = 0;
+			ID_EX.imm = 0;
 		}
 	}
-	// 2 instructions before
-	if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB != 0))
-	{
-		// if the destination register of mem_wb is the same as the current 
-		// rs or rt register then we have a data hazard 
-		if(rd_MEM_WB== rs)
-		{
-			ID_EX.hazardFlag = true;
-			// stall once
-			stallCounter++;
-		}
-		if(rd_MEM_WB == rt)
-		{
-			ID_EX.hazardFlag = true;
-			// stall once
-			stallCounter++;
-		}
-	}
-
-	// Engage stalling or bubbles?
-	if(ID_EX.hazardFlag == true)
-	{
-		printf("Hazard Detected \n");
-	}
-	/* End of Data Hazard Section */
-
-
-	ID_EX.A = CURRENT_STATE.REGS[rs]; 
-	ID_EX.B = CURRENT_STATE.REGS[rt];
-
-	// sign extend immediate
-	// if the 16th bit is set, sign extend	
-	if( immediate & 0x00008000)
-	{
-		printf("SET \n");
-		ID_EX.imm = immediate | 0xFFFF0000;
-	}
-	else
-		ID_EX.imm = immediate;
+	
 
 }
 
@@ -633,12 +728,27 @@ void ID()
 /************************************************************/
 void IF()
 {
-	IF_ID.IR = mem_read_32(CURRENT_STATE.PC);
-	IF_ID.PC = CURRENT_STATE.PC + 4;
-	printf("Current Instruction: 0x%08X \n", IF_ID.IR);
+	if(stallCounter == 0)
+	{
+		IF_ID.IR = mem_read_32(CURRENT_STATE.PC);
+		IF_ID.PC = CURRENT_STATE.PC + 4;
+		printf("Current Instruction: 0x%08X \n", IF_ID.IR);
 
-	// increment PC?
-	NEXT_STATE.PC = CURRENT_STATE.PC + 4;
+		// increment PC?
+		NEXT_STATE.PC = CURRENT_STATE.PC + 4;
+	}
+	// else
+	// {
+	// 	stallCounter--;
+	// 	if(stallCounter == 0)
+	// 	{
+	// 		printf("~done stalling ~ \n");
+	// 		ID_EX.hazardFlag = false;
+	// 	}
+	// 	else
+	// 		printf("~stalling~ \n");
+	// }
+	
 }
 
 
@@ -832,7 +942,7 @@ void print_program(uint32_t addr){
 /************************************************************/
 void show_pipeline(){
 	printf("\n---Pipeline Contents---\n");
-
+	printf("Cycle Count: %d \n", CYCLE_COUNT);
 	//IF/ID pipeline register
 	printf("PC: 0x%08X \n", CURRENT_STATE.PC);
 	printf("IF/ID.IR 0x%08X \n", IF_ID.IR);

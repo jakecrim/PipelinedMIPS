@@ -74,6 +74,7 @@ int ENABLE_FORWARDING;
 int REG_WRITE_EX_MEM;
 int REG_WRITE_MEM_WB;
 int stallCounter;
+uint32_t writeBackValue;
 
 /*Forwarding Flags*/ 
 uint32_t ForwardA;
