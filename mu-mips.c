@@ -348,42 +348,48 @@ void WB()
 	rt = (MEM_WB.IR & 0x001F0000) >> 16;
 	rd = (MEM_WB.IR & 0x0000F800) >> 11;
 
+	//simulating same cycle writeback capability 
 	writeBackValue = MEM_WB.ALUOutput;
 
 				printf("ALUOUTPUT: 0x%08X \n", MEM_WB.ALUOutput);
-	// If opcode = 0, its a register register writeback scenario
-	if(opcode == 0x0)
-	{
-		printf("register to register writeback \n");
-		NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
-	}
-	else
-	{
-		switch (opcode)
-		{
-			case 0x08:  // ADDI
-				NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
-				printf("ADDI WRITEBACK \n");
-				break;
-			case 0x09: //ADDIU
-				NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
-				printf("ADDIU WRITEBACK \n");
-				printf("ALUOUTPUT: 0x%08X \n", MEM_WB.ALUOutput);
-				printf("Writing 0x%08X to register 0x%08X \n", MEM_WB.ALUOutput, rt);
-				break;
-			case 0x0E: //XORI
-				NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
-				printf("XORI WRITEBACK \n");
-				break;
-			case 0x0F: //LUI 
-				NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
-				printf("LUI WRITEBACK \n");
-				break;
-			case 0x23: //LW
-				NEXT_STATE.REGS[rt] = MEM_WB.LMD;
-				printf("LW WRITEBACK \n");
-				break;
 
+	if(MEM_WB.IR != 0)
+	{
+		// If opcode = 0, its a register register writeback scenario
+		if(opcode == 0x0)
+		{
+			printf("register to register writeback \n");
+			NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
+		}
+		else
+		{
+			switch (opcode)
+			{
+				case 0x08:  // ADDI
+					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+					printf("ADDI WRITEBACK \n");
+					break;
+				case 0x09: //ADDIU
+					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+					printf("ADDIU WRITEBACK \n");
+					printf("ALUOUTPUT: 0x%08X \n", MEM_WB.ALUOutput);
+					printf("Writing 0x%08X to register 0x%08X \n", MEM_WB.ALUOutput, rt);
+					break;
+				case 0x0E: //XORI
+					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+					printf("XORI WRITEBACK \n");
+					break;
+				case 0x0F: //LUI 
+					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+					printf("LUI WRITEBACK \n");
+					break;
+				case 0x23: //LW
+					NEXT_STATE.REGS[rt] = MEM_WB.LMD;
+					writeBackValue = MEM_WB.LMD; //simulating same cycle writeback capability with LW
+					printf("LW WRITEBACK \n");
+					break;
+
+			}
 		}
 	}
 
@@ -412,6 +418,8 @@ void MEM()
 	{
 		printf("Memory Load \n");
 		MEM_WB.LMD = mem_read_32(EX_MEM.ALUOutput);
+		printf("MEMREAD(): 0x%08X \n", mem_read_32(EX_MEM.ALUOutput));
+		printf("MEM_WB.LMD: 0x%08X \n", MEM_WB.LMD);
 	}
 	else if(EX_MEM.storeFlag)
 	{
@@ -463,8 +471,12 @@ void EX()
 				EX_MEM.ALUOutput = ID_EX.A & ID_EX.B;
 				printf("AND Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;
+			case 0x25: //OR
+				EX_MEM.ALUOutput = ID_EX.A | ID_EX.B;
+				printf("OR Result: 0x%08X \n", EX_MEM.ALUOutput);
+				break;
 			case 0x26: // XOR
-				// EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] ^ CURRENT_STATE.REGS[EX_MEM.B]; // CL FIX THE XOR LATER!!!
+				EX_MEM.ALUOutput = ID_EX.A ^ ID_EX.B;
 				printf("XOR Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;	
 			case 0x0C: // SYSCALL
@@ -532,9 +544,11 @@ void ID()
 		{
 			ID_EX.IR = IF_ID.IR;
 			printf("- DEBUG PRINTS - \n");
+			printf("Instruction ID: 0x%08X \n", IF_ID.IR);
 			rs = (IF_ID.IR & 0x03E00000) >> 21;
 			rt = (IF_ID.IR & 0x001F0000) >> 16;
-			opcode = (ID_EX.IR & 0xFC000000) >> 26;
+			// opcode = (ID_EX.IR & 0xfc000001) >> 26;
+			opcode = (IF_ID.IR & 0xFC000000) >> 26;
 
 			immediate = IF_ID.IR & 0x0000FFFF;
 
@@ -579,8 +593,10 @@ void ID()
 					rsHazardType1 =  true;
 					stallCounter = 2;
 				}
-				// if(rd_EX_MEM == rt AND this is a register - register instruction, otherwise we don't care if rt finds a match) 
-				if((rd_EX_MEM == rt) && (opcode == 0x0))
+				// if(rd_EX_MEM == rt) AND this is a register - register instruction, OR a load or store instrucion
+				 		// otherwise we don't care if rt finds a match with immediate instructions) 
+				// if((rd_EX_MEM == rt) && (opcode == 0x0))
+				if((rd_EX_MEM == rt) && ((0x0F < opcode) || opcode == 0x0))
 				{
 					// stall twice
 					rtHazardType1 = true;
@@ -600,7 +616,9 @@ void ID()
 						stallCounter = 1;
 				}
 				// if(rd_MEM_WB == rt)
-				if((rd_MEM_WB == rt) && (opcode == 0x0))
+				// if((rd_MEM_WB == rt) && (opcode == 0x0))
+				// Again, excluding immediate instructions, as we dont care if there is an rt match with immediate instructions
+				if((rd_MEM_WB == rt) && ((0x0F < opcode) || opcode == 0x0))
 				{
 					// stall once if stallCounter equal 0, if its already 2 then keep it at 2!!!
 					rtHazardType2 = true;
@@ -623,23 +641,26 @@ void ID()
 				{
 					if(rsHazardType1 || (rsHazardType2 && !rtHazardType1))
 					{
-						ID_EX.A = writeBackValue;
+						printf("WriteBack into A 0x%08X \n", writeBackValue);
+						// ID_EX.A = writeBackValue;
+						ID_EX.A = NEXT_STATE.REGS[rs]; 
 						rsHazardType1 = false;
 						rsHazardType2 = false;
 					}
 					if(rtHazardType1 || (rtHazardType2 && !rsHazardType1))
 					{
-						ID_EX.B = writeBackValue;
+						printf("WriteBack into B 0x%08X \n", writeBackValue);
+						// ID_EX.B = writeBackValue;
+						ID_EX.B = NEXT_STATE.REGS[rt]; 
 						rtHazardType1 = false;
 						rtHazardType2 = false;
 					}
 				}
 
-				printf("Instruction ID: 0x%08X \n", IF_ID.IR);
 				printf("rs: 0x%08X \n", rs);
 				printf("rt: 0x%08X \n", rt);
-				printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rs]);
-				printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rt]);
+				printf("reg file print rs: 0x%08X \n", CURRENT_STATE.REGS[rs]);
+				printf("reg file print rt: 0x%08X \n", CURRENT_STATE.REGS[rt]);
 
 				// sign extend immediate
 				// if the 16th bit is set, sign extend	
