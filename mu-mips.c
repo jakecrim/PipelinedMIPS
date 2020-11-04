@@ -80,6 +80,7 @@ void cycle() {
 void run(int num_cycles) {                                      
 	
 	if (RUN_FLAG == FALSE) {
+		CURRENT_STATE = NEXT_STATE;
 		printf("Simulation Stopped\n\n");
 		return;
 	}
@@ -340,8 +341,7 @@ void handle_pipeline()
 void WB()
 {
 	/*IMPLEMENT THIS*/
-	printf("-Write Back- \n");
-
+	printf("-Write Back- \n");	
 	uint32_t rt, rd, opcode;
 	// getting necessary pieces of the instruction for execution
 	opcode = (MEM_WB.IR & 0xFC000000) >> 26;
@@ -350,6 +350,7 @@ void WB()
 
 	writeBackValue = MEM_WB.ALUOutput;
 
+				printf("ALUOUTPUT: 0x%08X \n", MEM_WB.ALUOutput);
 	// If opcode = 0, its a register register writeback scenario
 	if(opcode == 0x0)
 	{
@@ -367,6 +368,8 @@ void WB()
 			case 0x09: //ADDIU
 				NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
 				printf("ADDIU WRITEBACK \n");
+				printf("ALUOUTPUT: 0x%08X \n", MEM_WB.ALUOutput);
+				printf("Writing 0x%08X to register 0x%08X \n", MEM_WB.ALUOutput, rt);
 				break;
 			case 0x0E: //XORI
 				NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
@@ -461,7 +464,7 @@ void EX()
 				printf("AND Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;
 			case 0x26: // XOR
-				EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] ^ CURRENT_STATE.REGS[EX_MEM.B];
+				// EX_MEM.ALUOutput = CURRENT_STATE.REGS[EX_MEM.A] ^ CURRENT_STATE.REGS[EX_MEM.B]; // CL FIX THE XOR LATER!!!
 				printf("XOR Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;	
 			case 0x0C: // SYSCALL
@@ -516,7 +519,7 @@ void ID()
 /*IMPLEMENT THIS*/
 	printf("-Instruction Decode- \n");
 
-	uint32_t rs = 0, rt = 0, opcode_EX_MEM = 0, opcode_MEM_WB = 0, rd_EX_MEM = 0, rd_MEM_WB = 0, immediate = 0;
+	uint32_t rs = 0, rt = 0, opcode_EX_MEM = 0, opcode_MEM_WB = 0, rd_EX_MEM = 0, rd_MEM_WB = 0, immediate = 0, opcode = 0;
 
 	if(stallCounter != 0)
 		stallCounter--;
@@ -528,9 +531,10 @@ void ID()
 		if(stallCounter == 0)
 		{
 			ID_EX.IR = IF_ID.IR;
-			printf("decoding... \n");
+			printf("- DEBUG PRINTS - \n");
 			rs = (IF_ID.IR & 0x03E00000) >> 21;
 			rt = (IF_ID.IR & 0x001F0000) >> 16;
+			opcode = (ID_EX.IR & 0xFC000000) >> 26;
 
 			immediate = IF_ID.IR & 0x0000FFFF;
 
@@ -571,17 +575,16 @@ void ID()
 				printf("rt: 0x%08X \n", rt);
 				if(rd_EX_MEM == rs)
 				{
-					ID_EX.hazardFlag = true;
-					// rsHazard =  true;
 					// stall twice
-					stallCounter+=2;
+					rsHazardType1 =  true;
+					stallCounter = 2;
 				}
-				if(rd_EX_MEM == rt)
+				// if(rd_EX_MEM == rt AND this is a register - register instruction, otherwise we don't care if rt finds a match) 
+				if((rd_EX_MEM == rt) && (opcode == 0x0))
 				{
-					ID_EX.hazardFlag = true;
-					// rtHazard = true;
 					// stall twice
-					stallCounter+=2;
+					rtHazardType1 = true;
+					stallCounter = 2;
 				}
 			}
 			// 2 instructions before
@@ -591,15 +594,18 @@ void ID()
 				// rs or rt register then we have a data hazard 
 				if(rd_MEM_WB == rs)
 				{
-					ID_EX.hazardFlag = true;
-					// stall once
-					stallCounter++;
+					// stall once if stallCounter equal 0, if its already 2 then keep it at 2!!!
+					rsHazardType2 = true;
+					if(stallCounter == 0)
+						stallCounter = 1;
 				}
-				if(rd_MEM_WB == rt)
+				// if(rd_MEM_WB == rt)
+				if((rd_MEM_WB == rt) && (opcode == 0x0))
 				{
-					ID_EX.hazardFlag = true;
-					// stall once
-					stallCounter++;
+					// stall once if stallCounter equal 0, if its already 2 then keep it at 2!!!
+					rtHazardType2 = true;
+					if(stallCounter == 0)
+						stallCounter = 1;
 				}
 			}
 
@@ -609,8 +615,25 @@ void ID()
 				ID_EX.A = CURRENT_STATE.REGS[rs]; 
 				ID_EX.B = CURRENT_STATE.REGS[rt];
 
-				// if(oneCycleAfterHazard)
-				// 	ID_EX.? = writeBackValue;
+				// if we are one cycle after the stall counter is done
+				// 	we have to simulate having access to the WB() stage data through the 
+				// 		writeBackValue variable, the rs or rt hazard still needs handled
+				// 			this first cycle after being done stalling...
+				if(rsHazardType1 || rtHazardType1 || rsHazardType2 || rtHazardType2)
+				{
+					if(rsHazardType1 || (rsHazardType2 && !rtHazardType1))
+					{
+						ID_EX.A = writeBackValue;
+						rsHazardType1 = false;
+						rsHazardType2 = false;
+					}
+					if(rtHazardType1 || (rtHazardType2 && !rsHazardType1))
+					{
+						ID_EX.B = writeBackValue;
+						rtHazardType1 = false;
+						rtHazardType2 = false;
+					}
+				}
 
 				printf("Instruction ID: 0x%08X \n", IF_ID.IR);
 				printf("rs: 0x%08X \n", rs);
