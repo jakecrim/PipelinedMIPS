@@ -90,6 +90,9 @@ void run(int num_cycles) {
 	for (i = 0; i < num_cycles; i++) {
 		if (RUN_FLAG == FALSE) {
 			printf("Simulation Stopped.\n\n");
+			break;
+		}
+		cycle();
 	}
 }
 
@@ -98,6 +101,7 @@ void run(int num_cycles) {
 /***************************************************************/
 void runAll() {                                                     
 	if (RUN_FLAG == FALSE) {
+		cycle();
 		printf("Simulation Stopped.\n\n");
 		return;
 	}
