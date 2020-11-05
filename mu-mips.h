@@ -75,6 +75,11 @@ int REG_WRITE_EX_MEM;
 int REG_WRITE_MEM_WB;
 int stallCounter;
 uint32_t writeBackValue;
+bool rsHazardType1;
+bool rtHazardType1;
+bool rsHazardType2;
+bool rtHazardType2;
+bool oneCycleAfterHazard;
 
 /*Forwarding Flags*/ 
 uint32_t ForwardA;
