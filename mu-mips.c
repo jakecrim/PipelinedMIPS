@@ -615,7 +615,7 @@ void ID()
 					if(stallCounter == 0)
 						stallCounter = 1;
 				}
-				// if(rd_MEM_WB == rt)
+				
 				// if((rd_MEM_WB == rt) && (opcode == 0x0))
 				// Again, excluding immediate instructions, as we dont care if there is an rt match with immediate instructions
 				if((rd_MEM_WB == rt) && ((0x0F < opcode) || opcode == 0x0))
@@ -728,12 +728,15 @@ void ID()
 			//Forward A = 0x10
 			ID_EX.A = EX_MEM.ALUOutput;
 			printf("rs-rd collision from EX_MEM \n");
+			printf(" %08x \n", EX_MEM.ALUOutput);
+			printf(" %08x \n", ID_EX.A);
 		}				//really rt				//rt_ID_EX
 		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt))
 		{
 			//ForwardB = 0x10
 			ID_EX.B = EX_MEM.ALUOutput;
 			printf("rt-rd collision from EX_MEM \n");
+			printf(" %08x \n", EX_MEM.ALUOutput);
 		}
 
 		//forward from MEM stage											//rs_ID_EX		//rs_ID_EX
