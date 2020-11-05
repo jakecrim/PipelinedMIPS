@@ -697,6 +697,9 @@ void ID()
 		rs = (IF_ID.IR & 0x03E00000) >> 21;
 		rt = (IF_ID.IR & 0x001F0000) >> 16;
 
+		// opcode = (ID_EX.IR & 0xfc000001) >> 26;
+		opcode = (IF_ID.IR & 0xFC000000) >> 26;
+
 		immediate = IF_ID.IR & 0x0000FFFF;
 
 		// used for finding data hazards
@@ -707,6 +710,7 @@ void ID()
 		{
 			rd_EX_MEM = (EX_MEM.IR & 0x0000F800) >> 11;
 		}
+	 	//really rt_EX_MEM
 		else
 		{
 			rd_EX_MEM = (EX_MEM.IR & 0x001F0000) >> 16;
@@ -737,7 +741,7 @@ void ID()
 
 
 		// FORWARDING SECTION
-		//forward from EX stage						//rs_ID_EX
+		//forward from EX stage									//rs_ID_EX
 		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rs))
 		{	
 			//Forward A = 0x10
@@ -748,15 +752,19 @@ void ID()
 
 			forwardFlag = true;
 
-		}				//really rt				//rt_ID_EX
+		}							   							//rt_ID_EX
 		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt))
 		{
-			//ForwardB = 0x10
-			ID_EX.B = EX_MEM.ALUOutput;
-			printf("rt-rd collision from EX_MEM \n");
-			printf(" %08x \n", EX_MEM.ALUOutput);
+			if((0x0F < opcode) || (opcode == 0x0))
+			{
+				//ForwardB = 0x10
+				ID_EX.B = EX_MEM.ALUOutput;
+				printf("rt-rd collision from EX_MEM \n");
+				printf(" %08x \n", EX_MEM.ALUOutput);
 
-			forwardFlag = true;
+				forwardFlag = true;
+
+			}
 		}
 
 		//forward from MEM stage											//rs_ID_EX		//rs_ID_EX
@@ -771,11 +779,15 @@ void ID()
 		}														//rt_ID_EX		//rt_ID_EX
 		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB != 0) && !((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt)) && (rd_MEM_WB == rt))
 		{
-			//ForwardB = 0x01
-			ID_EX.B = MEM_WB.ALUOutput;
-			printf("rt-rd collision from MEM_WB \n");
+			if((0x0F < opcode) || (opcode == 0x0))
+			{
+				//ForwardB = 0x01
+				ID_EX.B = MEM_WB.ALUOutput;
+				printf("rt-rd collision from MEM_WB \n");
 
-			forwardFlag = true;
+				forwardFlag = true;
+
+			}
 		}
 
 		if(forwardFlag)
