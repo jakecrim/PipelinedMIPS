@@ -642,7 +642,7 @@ void ID()
 		}
 	}
 
-	
+
 	/* FORWARDING SECTION*/
 	if(ENABLE_FORWARDING)
 	{
@@ -678,7 +678,37 @@ void ID()
 
 		// FORWARDING SECTION
 
+		//forward from EX stage						//rs_ID_EX
+		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rs))
+		{	
+			//Forward A = 0x10
+			ID_EX.A = EX_MEM.ALUOutput;
+			printf("rs-rd collision from EX_MEM \n");
+		}				//really rt				//rt_ID_EX
+		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt))
+		{
+			//ForwardB = 0x10
+			ID_EX.B = EX_MEM.ALUOutput;
+			printf("rt-rd collision from EX_MEM \n");
+		}
 
+		//forward from MEM stage											//rs_ID_EX		//rs_ID_EX
+		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB != 0) && !((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rs)) && (rd_MEM_WB == rs))
+		{
+			//ForwardA = 0x01
+			ID_EX.A = MEM_WB.ALUOutput;
+			//might need to stall for WB
+			printf("rs-rd collision from MEM_WB \n");
+		}														//rt_ID_EX		//rt_ID_EX
+		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB != 0) && !((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt)) && (rd_MEM_WB == rt))
+		{
+			//ForwardB = 0x01
+			ID_EX.B = MEM_WB.ALUOutput;
+			printf("rt-rd collision from MEM_WB \n");
+		}
+
+			
+		
 
 
 
