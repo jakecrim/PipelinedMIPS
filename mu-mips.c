@@ -777,8 +777,11 @@ void ID()
 			forwardFlag = true;
 		}
 
-
-		
+		if(forwardFlag)
+		{
+			printf("Forwarding... \n");
+			forwardFlag = false;
+		}
 		// otherwise only pass on zeros
 		//
 		if(stallCounter != 0 )
@@ -789,7 +792,6 @@ void ID()
 			ID_EX.B = 0;
 			ID_EX.imm = 0;
 
-			forwardFlag = false;
 		}
 	}
 
