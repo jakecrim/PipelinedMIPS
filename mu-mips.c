@@ -690,7 +690,7 @@ void ID()
 	/* FORWARDING SECTION*/
 	if(ENABLE_FORWARDING)
 	{
-		bool forwardFlag;
+		bool forwardFlag = false;
 
 		ID_EX.IR = IF_ID.IR;
 		rs = (IF_ID.IR & 0x03E00000) >> 21;
@@ -781,7 +781,7 @@ void ID()
 		
 		// otherwise only pass on zeros
 		//
-		if(forwardFlag)
+		if(stallCounter != 0 )
 		{
 			printf("Hazard Detected \n");
 			ID_EX.IR = 0;
