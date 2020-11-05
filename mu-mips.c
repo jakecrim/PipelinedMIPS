@@ -720,8 +720,22 @@ void ID()
 			rd_MEM_WB = (MEM_WB.IR & 0x001F0000) >> 16;
 		}
 
-		// FORWARDING SECTION
+		// Normal Case (Lab 3 stuff)
+		ID_EX.A = CURRENT_STATE.REGS[rs]; 
+		ID_EX.B = CURRENT_STATE.REGS[rt];
 
+		// sign extend immediate
+		// if the 16th bit is set, sign extend	
+		if( immediate & 0x00008000)
+		{
+			printf("SET \n");
+			ID_EX.imm = immediate | 0xFFFF0000;
+		}
+		else
+			ID_EX.imm = immediate;
+
+
+		// FORWARDING SECTION
 		//forward from EX stage						//rs_ID_EX
 		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rs))
 		{	
@@ -763,31 +777,8 @@ void ID()
 			forwardFlag = true;
 		}
 
-		//this gets triggered when there isn't a forward	
-		// Normal ID() Lab 3 Stuff Section
-		// If there is no data hazard, pass on the register readings and immediate 
-		if(!forwardFlag) //
-		{
-			ID_EX.A = CURRENT_STATE.REGS[rs]; 
-			ID_EX.B = CURRENT_STATE.REGS[rt];
 
-			//printf("Instruction ID: 0x%08X \n", IF_ID.IR);
-			//printf("rs: 0x%08X \n", rs);
-			//printf("rt: 0x%08X \n", rt);
-			//printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rs]);
-			//printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rt]);
-
-			// sign extend immediate
-			// if the 16th bit is set, sign extend	
-			if( immediate & 0x00008000)
-			{
-				printf("SET \n");
-				ID_EX.imm = immediate | 0xFFFF0000;
-			}
-			else
-				ID_EX.imm = immediate;
-
-		}
+		
 		// otherwise only pass on zeros
 		//
 		if(forwardFlag)
