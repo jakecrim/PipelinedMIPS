@@ -690,6 +690,8 @@ void ID()
 	/* FORWARDING SECTION*/
 	if(ENABLE_FORWARDING)
 	{
+		bool forwardFlag;
+
 		ID_EX.IR = IF_ID.IR;
 		printf("decoding... \n");
 		rs = (IF_ID.IR & 0x03E00000) >> 21;
@@ -700,7 +702,6 @@ void ID()
 		// used for finding data hazards
 		opcode_EX_MEM = (EX_MEM.IR & 0xFC000000) >> 26;
 		opcode_MEM_WB = (MEM_WB.IR & 0xFC000000) >> 26;
-
 		// If its an immediate instruction, "rd" is really rt 
 		if(opcode_EX_MEM == 0x0)
 		{
@@ -730,6 +731,9 @@ void ID()
 			printf("rs-rd collision from EX_MEM \n");
 			printf(" %08x \n", EX_MEM.ALUOutput);
 			printf(" %08x \n", ID_EX.A);
+
+			forwardFlag = true;
+
 		}				//really rt				//rt_ID_EX
 		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt))
 		{
@@ -737,6 +741,8 @@ void ID()
 			ID_EX.B = EX_MEM.ALUOutput;
 			printf("rt-rd collision from EX_MEM \n");
 			printf(" %08x \n", EX_MEM.ALUOutput);
+
+			forwardFlag = true;
 		}
 
 		//forward from MEM stage											//rs_ID_EX		//rs_ID_EX
@@ -746,34 +752,31 @@ void ID()
 			ID_EX.A = MEM_WB.ALUOutput;
 			//might need to stall for WB
 			printf("rs-rd collision from MEM_WB \n");
+
+			forwardFlag = true;
 		}														//rt_ID_EX		//rt_ID_EX
 		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB != 0) && !((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt)) && (rd_MEM_WB == rt))
 		{
 			//ForwardB = 0x01
 			ID_EX.B = MEM_WB.ALUOutput;
 			printf("rt-rd collision from MEM_WB \n");
+
+			forwardFlag = true;
 		}
 
-			
-		
-
-
-
+		//this gets triggered when there isn't a forward	
 		// Normal ID() Lab 3 Stuff Section
 		// If there is no data hazard, pass on the register readings and immediate 
-		if(stallCounter == 0)
+		if(!forwardFlag) //
 		{
 			ID_EX.A = CURRENT_STATE.REGS[rs]; 
 			ID_EX.B = CURRENT_STATE.REGS[rt];
 
-			// if(oneCycleAfterHazard)
-			// 	ID_EX.? = writeBackValue;
-
-			printf("Instruction ID: 0x%08X \n", IF_ID.IR);
-			printf("rs: 0x%08X \n", rs);
-			printf("rt: 0x%08X \n", rt);
-			printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rs]);
-			printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rt]);
+			//printf("Instruction ID: 0x%08X \n", IF_ID.IR);
+			//printf("rs: 0x%08X \n", rs);
+			//printf("rt: 0x%08X \n", rt);
+			//printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rs]);
+			//printf("reg file print: 0x%08X \n", CURRENT_STATE.REGS[rt]);
 
 			// sign extend immediate
 			// if the 16th bit is set, sign extend	
@@ -787,16 +790,19 @@ void ID()
 
 		}
 		// otherwise only pass on zeros
-		else
+		//
+		if(forwardFlag)
 		{
 			printf("Hazard Detected \n");
 			ID_EX.IR = 0;
 			ID_EX.A = 0;
 			ID_EX.B = 0;
 			ID_EX.imm = 0;
+
+			forwardFlag = false;
 		}
 	}
-	
+
 
 }
 
