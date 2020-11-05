@@ -539,7 +539,7 @@ void ID()
 	/* STALLING SOLUTION WHEN FORWARDING DISABLED */
 	if(!ENABLE_FORWARDING)
 	{
-
+		printf("Forwarding NOT Enabled \n");
 		if(stallCounter == 0)
 		{
 			ID_EX.IR = IF_ID.IR;
@@ -693,7 +693,6 @@ void ID()
 		bool forwardFlag;
 
 		ID_EX.IR = IF_ID.IR;
-		printf("decoding... \n");
 		rs = (IF_ID.IR & 0x03E00000) >> 21;
 		rt = (IF_ID.IR & 0x001F0000) >> 16;
 
