@@ -352,7 +352,7 @@ void WB()
 	//simulating same cycle writeback capability 
 	writeBackValue = MEM_WB.ALUOutput;
 
-				printf("ALUOUTPUT: 0x%08X \n", MEM_WB.ALUOutput);
+	printf("ALUOUTPUT: 0x%08X \n", MEM_WB.ALUOutput);
 
 	if(MEM_WB.IR != 0)
 	{
@@ -728,6 +728,15 @@ void ID()
 		// Normal Case (Lab 3 stuff)
 		ID_EX.A = CURRENT_STATE.REGS[rs]; 
 		ID_EX.B = CURRENT_STATE.REGS[rt];
+		
+		if(CURRENT_STATE.REGS[rs] != NEXT_STATE.REGS[rs])
+		{
+			ID_EX.A = NEXT_STATE.REGS[rs]; 
+		}
+		if(CURRENT_STATE.REGS[rt] != NEXT_STATE.REGS[rt])
+		{
+			ID_EX.B = NEXT_STATE.REGS[rt]; 
+		}	
 
 		// sign extend immediate
 		// if the 16th bit is set, sign extend	
@@ -741,6 +750,11 @@ void ID()
 
 
 		// FORWARDING SECTION
+		printf("-- DEBUG PRINTS -- \n");
+		printf("rd_EX_MEM: 0x%08X \n", rd_EX_MEM);
+		printf("rd_MEM_WB: 0x%08X \n", rd_MEM_WB);
+		printf("rs: 0x%08X \n", rs);
+		printf("rt: 0x%08X \n", rt);
 		//forward from EX stage									//rs_ID_EX
 		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rs))
 		{	
@@ -750,6 +764,13 @@ void ID()
 			printf("condition 1\n");
 			//printf(" %08x \n", EX_MEM.ALUOutput);
 			//printf(" %08x \n", ID_EX.A);
+
+			// Specific Logic for if a Load Word hazard is found
+			if(opcode_EX_MEM == 0x23)
+			{
+				printf("LW Hazard Detected \n");
+				stallCounter = 1;
+			}
 
 			forwardFlag = true;
 
@@ -763,6 +784,13 @@ void ID()
 				printf("rt-rd collision from EX_MEM \n");
 				printf("condition 2\n");
 				//printf(" %08x \n", EX_MEM.ALUOutput);
+
+				// Specific Logic for if a Load Word hazard is found
+				if(opcode_EX_MEM == 0x23)
+				{
+					printf("LW Hazard Detected \n");
+					stallCounter = 1;
+				}
 
 				forwardFlag = true;
 
@@ -778,6 +806,12 @@ void ID()
 			printf("rs-rd collision from MEM_WB \n");
 			printf("condition 3\n");
 
+			// If load word hazard we need the LMD val, not the ALUoutput
+			if(opcode_MEM_WB == 0x23)
+			{
+				ID_EX.A = MEM_WB.LMD;
+			}
+
 			forwardFlag = true;
 		}														//rt_ID_EX		//rt_ID_EX
 		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB != 0) && !((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt)) && (rd_MEM_WB == rt))
@@ -788,6 +822,12 @@ void ID()
 				ID_EX.B = MEM_WB.ALUOutput;
 				printf("rt-rd collision from MEM_WB \n");
 				printf("condition 4\n");
+
+				// If load word hazard we need the LMD val, not the ALUoutput
+				if(opcode_MEM_WB == 0x23)
+				{
+					ID_EX.A = MEM_WB.LMD;
+				}
 
 				forwardFlag = true;
 

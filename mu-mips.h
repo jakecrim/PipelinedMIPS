@@ -122,3 +122,11 @@ void show_pipeline();/*IMPLEMENT THIS*/
 void initialize();
 void print_program(); /*IMPLEMENT THIS*/
 
+
+
+// If LW is two instrucitons back
+// if(opcode_MEM_WB == lw)
+// {
+// 	ID_EX.A = MEM_WB.LMD;
+// }
+
