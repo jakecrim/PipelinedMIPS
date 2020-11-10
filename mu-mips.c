@@ -747,8 +747,9 @@ void ID()
 			//Forward A = 0x10
 			ID_EX.A = EX_MEM.ALUOutput;
 			printf("rs-rd collision from EX_MEM \n");
-			printf(" %08x \n", EX_MEM.ALUOutput);
-			printf(" %08x \n", ID_EX.A);
+			printf("condition 1\n");
+			//printf(" %08x \n", EX_MEM.ALUOutput);
+			//printf(" %08x \n", ID_EX.A);
 
 			forwardFlag = true;
 
@@ -760,7 +761,8 @@ void ID()
 				//ForwardB = 0x10
 				ID_EX.B = EX_MEM.ALUOutput;
 				printf("rt-rd collision from EX_MEM \n");
-				printf(" %08x \n", EX_MEM.ALUOutput);
+				printf("condition 2\n");
+				//printf(" %08x \n", EX_MEM.ALUOutput);
 
 				forwardFlag = true;
 
@@ -774,6 +776,7 @@ void ID()
 			ID_EX.A = MEM_WB.ALUOutput;
 			//might need to stall for WB
 			printf("rs-rd collision from MEM_WB \n");
+			printf("condition 3\n");
 
 			forwardFlag = true;
 		}														//rt_ID_EX		//rt_ID_EX
@@ -784,6 +787,7 @@ void ID()
 				//ForwardB = 0x01
 				ID_EX.B = MEM_WB.ALUOutput;
 				printf("rt-rd collision from MEM_WB \n");
+				printf("condition 4\n");
 
 				forwardFlag = true;
 
@@ -798,7 +802,7 @@ void ID()
 		// otherwise only pass on zeros
 		//
 		if(stallCounter != 0 )
-		{
+				{
 			printf("Hazard Detected \n");
 			ID_EX.IR = 0;
 			ID_EX.A = 0;
