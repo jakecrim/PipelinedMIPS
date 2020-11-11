@@ -341,7 +341,6 @@ void handle_pipeline()
 /************************************************************/
 void WB()
 {
-	/*IMPLEMENT THIS*/
 	printf("-Write Back- \n");	
 	uint32_t rt, rd, opcode;
 	// getting necessary pieces of the instruction for execution
@@ -352,8 +351,6 @@ void WB()
 	//simulating same cycle writeback capability 
 	writeBackValue = MEM_WB.ALUOutput;
 
-	printf("ALUOUTPUT: 0x%08X \n", MEM_WB.ALUOutput);
-
 	if(MEM_WB.IR != 0)
 	{
 		// If opcode = 0, its a register register writeback scenario
@@ -362,7 +359,7 @@ void WB()
 			printf("register to register writeback \n");
 			NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
 		}
-		else
+		else // non-reg-reg writeback scenario
 		{
 			switch (opcode)
 			{
@@ -373,8 +370,6 @@ void WB()
 				case 0x09: //ADDIU
 					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
 					printf("ADDIU WRITEBACK \n");
-					printf("ALUOUTPUT: 0x%08X \n", MEM_WB.ALUOutput);
-					printf("Writing 0x%08X to register 0x%08X \n", MEM_WB.ALUOutput, rt);
 					break;
 				case 0x0E: //XORI
 					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
@@ -408,13 +403,14 @@ void MEM()
 	// 	before it is set back to true by defaultin EX() stage	
 	REG_WRITE_MEM_WB = REG_WRITE_EX_MEM;
 
+	// pass along pipeline reg info
 	MEM_WB.IR = EX_MEM.IR;
 	MEM_WB.A = EX_MEM.A;
 	MEM_WB.B = EX_MEM.B;
 	MEM_WB.ALUOutput = EX_MEM.ALUOutput;
 
 
-
+	// check if the loadflag or the store flag is set to see if we need to access memory
 	if(EX_MEM.loadFlag)
 	{
 		printf("Memory Load \n");
@@ -436,12 +432,12 @@ void MEM()
 /************************************************************/
 void EX()
 {
-	/*IMPLEMENT THIS*/
 	printf("-Execution- \n");
 
 	// only retreive new instruction if we aren't stalling
 	EX_MEM.IR = ID_EX.IR;
 		
+	// retrieve from pipeline regs	
 	EX_MEM.A = ID_EX.A;
 	EX_MEM.B = ID_EX.B;
 
@@ -458,7 +454,7 @@ void EX()
 	opcode = (ID_EX.IR & 0xFC000000) >> 26;
 	function = ID_EX.IR & 0x0000003F;
 
-
+	// ALU logic 
 	if(opcode == 0x00)
 	{
 		printf("Function Code: 0x%08X \n", function);
@@ -482,6 +478,8 @@ void EX()
 				break;	
 			case 0x0C: // SYSCALL
 				printf("SYSCALL \n");
+				// finish the final instruction thats in WB() stage
+				WB();
 				RUN_FLAG = false;
 				REG_WRITE_EX_MEM = false;
 				break;	
@@ -501,6 +499,7 @@ void EX()
 				break;
 			case 0x0E: //XORI
 				EX_MEM.ALUOutput = ID_EX.A ^ (ID_EX.imm & 0x0000FFFF);
+				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;
 			case 0x0F: //LUI 
 				EX_MEM.ALUOutput = ID_EX.imm << 16;
@@ -529,22 +528,20 @@ void EX()
 /************************************************************/
 void ID()
 {
-/*IMPLEMENT THIS*/
 	printf("-Instruction Decode- \n");
 
 	uint32_t rs = 0, rt = 0, opcode_EX_MEM = 0, opcode_MEM_WB = 0, rd_EX_MEM = 0, rd_MEM_WB = 0, immediate = 0, opcode = 0;
 
+	// decrease stall counter if it is set
 	if(stallCounter != 0)
 		stallCounter--;
 
 	/* STALLING SOLUTION WHEN FORWARDING DISABLED */
 	if(!ENABLE_FORWARDING)
 	{
-		printf("Forwarding NOT Enabled \n");
 		if(stallCounter == 0)
 		{
 			ID_EX.IR = IF_ID.IR;
-			printf("- DEBUG PRINTS - \n");
 			printf("Instruction ID: 0x%08X \n", IF_ID.IR);
 			rs = (IF_ID.IR & 0x03E00000) >> 21;
 			rt = (IF_ID.IR & 0x001F0000) >> 16;
@@ -557,6 +554,7 @@ void ID()
 			opcode_EX_MEM = (EX_MEM.IR & 0xFC000000) >> 26;
 			opcode_MEM_WB = (MEM_WB.IR & 0xFC000000) >> 26;
 
+			// special logic for case described below
 			// If its an immediate instruction, "rd" is really rt 
 			if(opcode_EX_MEM == 0x0)
 			{
@@ -584,19 +582,14 @@ void ID()
 			{
 				// if the destination register of ex_mem is the same as the current 
 				// rs or rt register then we have a data hazard
-				printf("rd_EX_MEM: 0x%08X \n", rd_EX_MEM);
-				printf("rd_MEM_WB: 0x%08X \n", rd_MEM_WB);
-				printf("rs: 0x%08X \n", rs);
-				printf("rt: 0x%08X \n", rt);
 				if(rd_EX_MEM == rs)
 				{
 					// stall twice
 					rsHazardType1 =  true;
 					stallCounter = 2;
 				}
-				// if(rd_EX_MEM == rt) AND this is a register - register instruction, OR a load or store instrucion
-				 		// otherwise we don't care if rt finds a match with immediate instructions) 
-				// if((rd_EX_MEM == rt) && (opcode == 0x0))
+				// if rd_EX_MEM == rt AND this is a register - register instruction, OR a load or store instrucion
+				//   otherwise we don't care if rt finds a match with immediate instructions
 				if((rd_EX_MEM == rt) && ((0x0F < opcode) || opcode == 0x0))
 				{
 					// stall twice
@@ -616,8 +609,6 @@ void ID()
 					if(stallCounter == 0)
 						stallCounter = 1;
 				}
-				
-				// if((rd_MEM_WB == rt) && (opcode == 0x0))
 				// Again, excluding immediate instructions, as we dont care if there is an rt match with immediate instructions
 				if((rd_MEM_WB == rt) && ((0x0F < opcode) || opcode == 0x0))
 				{
@@ -658,23 +649,17 @@ void ID()
 					}
 				}
 
-				printf("rs: 0x%08X \n", rs);
-				printf("rt: 0x%08X \n", rt);
-				printf("reg file print rs: 0x%08X \n", CURRENT_STATE.REGS[rs]);
-				printf("reg file print rt: 0x%08X \n", CURRENT_STATE.REGS[rt]);
-
 				// sign extend immediate
 				// if the 16th bit is set, sign extend	
 				if( immediate & 0x00008000)
 				{
-					printf("SET \n");
 					ID_EX.imm = immediate | 0xFFFF0000;
 				}
 				else
 					ID_EX.imm = immediate;
 
 			}
-			// otherwise only pass on zeros
+			// otherwise only pass on zeros, this functions as the first stall if a hazard is found
 			else
 			{
 				printf("Hazard Detected \n");
@@ -750,11 +735,6 @@ void ID()
 
 
 		// FORWARDING SECTION
-		printf("-- DEBUG PRINTS -- \n");
-		printf("rd_EX_MEM: 0x%08X \n", rd_EX_MEM);
-		printf("rd_MEM_WB: 0x%08X \n", rd_MEM_WB);
-		printf("rs: 0x%08X \n", rs);
-		printf("rt: 0x%08X \n", rt);
 		//forward from EX stage									//rs_ID_EX
 		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rs))
 		{	
@@ -762,8 +742,6 @@ void ID()
 			ID_EX.A = EX_MEM.ALUOutput;
 			printf("rs-rd collision from EX_MEM \n");
 			printf("condition 1\n");
-			//printf(" %08x \n", EX_MEM.ALUOutput);
-			//printf(" %08x \n", ID_EX.A);
 
 			// Specific Logic for if a Load Word hazard is found
 			if(opcode_EX_MEM == 0x23)
@@ -840,9 +818,8 @@ void ID()
 			forwardFlag = false;
 		}
 		// otherwise only pass on zeros
-		//
 		if(stallCounter != 0 )
-				{
+		{
 			printf("Hazard Detected \n");
 			ID_EX.IR = 0;
 			ID_EX.A = 0;
@@ -866,20 +843,9 @@ void IF()
 		IF_ID.PC = CURRENT_STATE.PC + 4;
 		printf("Current Instruction: 0x%08X \n", IF_ID.IR);
 
-		// increment PC?
+		// increment PC
 		NEXT_STATE.PC = CURRENT_STATE.PC + 4;
 	}
-	// else
-	// {
-	// 	stallCounter--;
-	// 	if(stallCounter == 0)
-	// 	{
-	// 		printf("~done stalling ~ \n");
-	// 		ID_EX.hazardFlag = false;
-	// 	}
-	// 	else
-	// 		printf("~stalling~ \n");
-	// }
 	
 }
 
