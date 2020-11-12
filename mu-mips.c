@@ -441,7 +441,9 @@ void EX()
 	EX_MEM.A = ID_EX.A;
 	EX_MEM.B = ID_EX.B;
 
-	uint32_t opcode, function;
+	uint32_t opcode, function, rt;
+
+	rt = (ID_EX.IR & 0x001F0000) >> 16;
 
 	// set to false by default 
 	EX_MEM.loadFlag = false;
@@ -502,6 +504,52 @@ void EX()
 	{
 		switch(opcode)
 		{
+			case 0x01:
+				if(rt == 0x00000)  //BLTZ
+				{ 
+					if((ID_EX.A & 0x80000000) > 0)
+					{
+						printf("BLTZ \n");
+						// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+						// branch_jump = TRUE;
+					}
+				}
+				else if(rt == 0x00001)   //BGEZ
+				{ 
+					if((ID_EX.A & 0x80000000) == 0x0)
+					{
+						printf("BGEZ \n");
+						// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+						// branch_jump = TRUE;
+					}
+				}
+				break;
+			
+			case 0x04: //BEQ
+				if(ID_EX.A == ID_EX.B)
+				{
+					printf("BEQ \n");
+					// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					// branch_jump = TRUE;
+
+				}
+				break;
+			case 0x05: //BNE
+				if(ID_EX.A != ID_EX.B)
+				{
+					printf("BNE \n");
+					// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					// branch_jump = TRUE;
+				}
+				break;
+			case 0x06: //BLEZ
+				if((ID_EX.A & 0x80000000) > 0 || ID_EX.A == 0)
+				{
+					printf("BLE \n");
+					// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					// branch_jump = TRUE;
+				}
+				break;
 			case 0x08:  // ADDI
 				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
@@ -749,7 +797,7 @@ void ID()
 		// Normal Case (Lab 3 stuff)
 		ID_EX.A = CURRENT_STATE.REGS[rs]; 
 		ID_EX.B = CURRENT_STATE.REGS[rt];
-		
+
 		if(CURRENT_STATE.REGS[rs] != NEXT_STATE.REGS[rs])
 		{
 			ID_EX.A = NEXT_STATE.REGS[rs]; 
