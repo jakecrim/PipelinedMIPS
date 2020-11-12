@@ -476,13 +476,26 @@ void EX()
 				EX_MEM.ALUOutput = ID_EX.A ^ ID_EX.B;
 				printf("XOR Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;	
+			case 0x08: //JR
+				printf("JR not yet implemented\n");
+				/*NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
+				branch_jump = TRUE;
+				print_instruction(CURRENT_STATE.PC);
+				break;	*/
+			case 0x09: //JALR
+				printf("JALR not yet implemented \n");
+				/*NEXT_STATE.REGS[rd] = CURRENT_STATE.PC + 4;
+				NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
+				branch_jump = TRUE;
+				print_instruction(CURRENT_STATE.PC);
+				break;*/
 			case 0x0C: // SYSCALL
 				printf("SYSCALL \n");
 				// finish the final instruction thats in WB() stage
 				WB();
 				RUN_FLAG = false;
 				REG_WRITE_EX_MEM = false;
-				break;	
+				break;
 		}
 	}
 	else
@@ -516,6 +529,29 @@ void EX()
 				EX_MEM.storeFlag = true;
 				REG_WRITE_EX_MEM = false;
 				break;
+			case 0x07: //BGTZ
+				printf("BGTZ not yet implemented \n");
+				/*if((CURRENT_STATE.REGS[rs] & 0x80000000) == 0x0 || CURRENT_STATE.REGS[rs] != 0){
+					NEXT_STATE.PC = CURRENT_STATE.PC +  ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000)<<2 : (immediate & 0x0000FFFF)<<2);
+					branch_jump = TRUE;
+					print_instruction(CURRENT_STATE.PC);
+				break;*/
+			case 0x02: //J
+				printf("J not yet implemented \n");
+				/*NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
+				branch_jump = TRUE;
+				print_instruction(CURRENT_STATE.PC);
+				break;*/
+			case 0x03: //JAL
+				printf("JAL not yet implemented \n");
+				/*NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
+				NEXT_STATE.REGS[31] = CURRENT_STATE.PC + 4;
+				branch_jump = TRUE;
+				print_instruction(CURRENT_STATE.PC);
+				break;*/
+			
+			
+
 		}
 	}
 
