@@ -597,9 +597,6 @@ void EX()
 				branch_jump = TRUE;
 				print_instruction(CURRENT_STATE.PC); */
 				break;
-			
-			
-
 		}
 	}
 
