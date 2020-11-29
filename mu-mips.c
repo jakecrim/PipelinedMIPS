@@ -585,6 +585,13 @@ void EX()
 					print_instruction(CURRENT_STATE.PC); */
 				break;
 			case 0x02: //J
+				// dont fetch next instruciton, until we have the NEW PC
+				// once the jump is HERE In EX(), there will be an instruction in ID() and IF() stage?
+				// stall so that another isn't fetched? *ADJUSTED AND ALOT OF THESE IDEAS GO IN ID()
+				// ***
+				// if we are taking the branch, FLUSH out the instrucvtion stuff in ID() stage and its
+				// reg-related stuff!
+
 				printf("J not yet implemented \n");
 				/*NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
 				branch_jump = TRUE;
@@ -609,6 +616,9 @@ void EX()
 /************************************************************/
 void ID()
 {
+	// NEW TO DO:
+	// if it it is control instruciton, do a stall!
+	// 
 	printf("-Instruction Decode- \n");
 
 	uint32_t rs = 0, rt = 0, opcode_EX_MEM = 0, opcode_MEM_WB = 0, rd_EX_MEM = 0, rd_MEM_WB = 0, immediate = 0, opcode = 0;
