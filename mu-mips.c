@@ -441,9 +441,14 @@ void EX()
 	EX_MEM.A = ID_EX.A;
 	EX_MEM.B = ID_EX.B;
 
-	uint32_t opcode, function, rt;
+	uint32_t opcode, function, target, rt, rs, rd, sa;
+	uint32_t addr, data;
+	uint64_t product;
 
+	rs = (ID_EX.IR & 0x03E00000) >> 21;
 	rt = (ID_EX.IR & 0x001F0000) >> 16;
+	rd = (ID_EX.IR & 0x0000F800) >> 11;
+	sa = (ID_EX.IR & 0x000007C0) >> 6;
 
 	// set to false by default 
 	EX_MEM.loadFlag = false;
@@ -455,6 +460,8 @@ void EX()
 	// getting necessary pieces of the instruction for execution
 	opcode = (ID_EX.IR & 0xFC000000) >> 26;
 	function = ID_EX.IR & 0x0000003F;
+	target = ID_EX.IR & 0x03FFFFFF;
+
 
 	// ALU logic 
 	if(opcode == 0x00)
@@ -478,19 +485,71 @@ void EX()
 				EX_MEM.ALUOutput = ID_EX.A ^ ID_EX.B;
 				printf("XOR Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;	
-			case 0x08: //JR
+			case 0x08: //JR **NEW/COMPLETE**
 				printf("JR not yet implemented\n");
-				/*NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
-				branch_jump = TRUE;
-				print_instruction(CURRENT_STATE.PC); */
-				break;
-			case 0x09: //JALR
-				printf("JALR not yet implemented \n");
-				/*NEXT_STATE.REGS[rd] = CURRENT_STATE.PC + 4;
 				NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
-				branch_jump = TRUE;
-				print_instruction(CURRENT_STATE.PC);*/
+				//branch_jump = TRUE;
 				break;
+			case 0x09: //JALR **NEW/COMPLETE**
+				printf("JALR not yet implemented \n");
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.PC + 4;
+				NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
+				//branch_jump = TRUE;
+				break;
+			case 0x02: //SRL **NEW/FROM FILE/COMPLETE**
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] >> sa;
+				break;
+			case 0x03:  //SRA **NEW/FROM FILE/COMPLETE** ---->this always evaluates to true
+			/*	if ((CURRENT_STATE.REGS[rt] & 0x80000000) == 1)
+				{
+					NEXT_STATE.REGS[rd] =  ~(~CURRENT_STATE.REGS[rt] >> sa );
+				}
+				else{
+					NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] >> sa;
+				}
+				break;*/
+			case 0x22: //SUB **NEW/FROM FILE/COMPLETE**
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] - CURRENT_STATE.REGS[rt];
+				break;
+			case 0x00: //SLL **NEW/FROM FILE/COMPLETE**
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] << sa;
+				break;
+			case 0x1B: //DIVU
+				if(CURRENT_STATE.REGS[rt] != 0)
+				{
+					NEXT_STATE.LO = CURRENT_STATE.REGS[rs] / CURRENT_STATE.REGS[rt];
+					NEXT_STATE.HI = CURRENT_STATE.REGS[rs] % CURRENT_STATE.REGS[rt];
+				}
+				break;
+			case 0x10: //MFHI **NEW/FROM FILE/COMPLETE**
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.HI;
+			case 0x12: //MFLO  **NEW/FROM FILE/COMPLETE**
+				NEXT_STATE.REGS[rd] = CURRENT_STATE.LO;
+				break;
+			case 0x19: //MULTU
+				product = (uint64_t)CURRENT_STATE.REGS[rs] * (uint64_t)CURRENT_STATE.REGS[rt];
+				NEXT_STATE.LO = (product & 0X00000000FFFFFFFF);
+				NEXT_STATE.HI = (product & 0XFFFFFFFF00000000)>>32;
+				break;
+			case 0x11: //MTHI **NEW/FROM FILE/COMPLETE**
+				NEXT_STATE.HI = CURRENT_STATE.REGS[rs];
+				break;
+			case 0x13: //MTLO **NEW/FROM FILE/COMPLETE**
+				NEXT_STATE.LO = CURRENT_STATE.REGS[rs];
+				break;
+			case 0x2A: //SLT **NEW/FROM FILE/COMPLETE**
+				if(CURRENT_STATE.REGS[rs] < CURRENT_STATE.REGS[rt]){
+					NEXT_STATE.REGS[rd] = 0x1;
+				}
+				else{
+					NEXT_STATE.REGS[rd] = 0x0;
+				}
+				break;
+			case 0x27: //NOR **NEW/FROM FILE/COMPLETE**
+				NEXT_STATE.REGS[rd] = ~(CURRENT_STATE.REGS[rs] | CURRENT_STATE.REGS[rt]);
+				break;
+				
+
 			case 0x0C: // SYSCALL
 				printf("SYSCALL \n");
 				// finish the final instruction thats in WB() stage
@@ -505,49 +564,49 @@ void EX()
 		switch(opcode)
 		{
 			case 0x01:
-				if(rt == 0x00000)  //BLTZ
+				if(rt == 0x00000)  //BLTZ **NEW/COMPLETE**
 				{ 
 					if((ID_EX.A & 0x80000000) > 0)
 					{
 						printf("BLTZ \n");
-						// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-						// branch_jump = TRUE;
+						NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+						//branch_jump = TRUE;
 					}
 				}
-				else if(rt == 0x00001)   //BGEZ
+				else if(rt == 0x00001)   //BGEZ **NEW/COMPLETE**
 				{ 
 					if((ID_EX.A & 0x80000000) == 0x0)
 					{
 						printf("BGEZ \n");
-						// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-						// branch_jump = TRUE;
+						NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+						//branch_jump = TRUE;
 					}
 				}
 				break;
 			
-			case 0x04: //BEQ
+			case 0x04: //BEQ **NEW/COMPLETE**
 				if(ID_EX.A == ID_EX.B)
 				{
 					printf("BEQ \n");
-					// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-					// branch_jump = TRUE;
+					NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					//branch_jump = TRUE;
 
 				}
 				break;
-			case 0x05: //BNE
+			case 0x05: //BNE **NEW/COMPLETE**
 				if(ID_EX.A != ID_EX.B)
 				{
 					printf("BNE \n");
-					// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-					// branch_jump = TRUE;
+					NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					//branch_jump = TRUE;
 				}
 				break;
-			case 0x06: //BLEZ
+			case 0x06: //BLEZ **NEW/COMPLETE**
 				if((ID_EX.A & 0x80000000) > 0 || ID_EX.A == 0)
 				{
 					printf("BLE \n");
-					// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-					// branch_jump = TRUE;
+					NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					//branch_jump = TRUE;
 				}
 				break;
 			case 0x08:  // ADDI
@@ -577,29 +636,62 @@ void EX()
 				EX_MEM.storeFlag = true;
 				REG_WRITE_EX_MEM = false;
 				break;
-			case 0x07: //BGTZ
+			case 0x07: //BGTZ  **NEW/COMPLETE**
 				printf("BGTZ not yet implemented \n");
-				/*if((CURRENT_STATE.REGS[rs] & 0x80000000) == 0x0 || CURRENT_STATE.REGS[rs] != 0){
-					NEXT_STATE.PC = CURRENT_STATE.PC +  ( (immediate & 0x8000) > 0 ? (immediate | 0xFFFF0000)<<2 : (immediate & 0x0000FFFF)<<2);
-					branch_jump = TRUE;
-					print_instruction(CURRENT_STATE.PC); */
+				if(rt == 0x00000)
+				{
+					if((ID_EX.A & 0x80000000) > 0)
+					{
+						printf("BGTZ \n");
+						NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+						//branch_jump = TRUE;
+					}
+				}
 				break;
-			case 0x02: //J
+			case 0x02: //J **NEW/COMPLETE**
 				printf("J not yet implemented \n");
-				/*NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
-				branch_jump = TRUE;
-				print_instruction(CURRENT_STATE.PC); */
+				NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
+				//branch_jump = TRUE; 
 				break;
-			case 0x03: //JAL
+			case 0x03: //JAL **NEW/COMPLETE**
 				printf("JAL not yet implemented \n");
-				/*NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
+				NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
 				NEXT_STATE.REGS[31] = CURRENT_STATE.PC + 4;
-				branch_jump = TRUE;
-				print_instruction(CURRENT_STATE.PC); */
+				//branch_jump = TRUE;
 				break;
-			
-			
-
+			case 0x29: //SH **NEW/FROM FILE/COMPLETE**
+				addr = CURRENT_STATE.REGS[rs] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				data = mem_read_32( addr);
+				data = (data & 0xFFFF0000) | (CURRENT_STATE.REGS[rt] & 0x0000FFFF);
+				mem_write_32(addr, data);
+				break;
+			case 0x0D: //ORI **NEW/FROM FILE/COMPLETE**
+				NEXT_STATE.REGS[rt] = CURRENT_STATE.REGS[rs] | (ID_EX.imm & 0x0000FFFF);
+				break;
+			case 0x0C: //ANDI **NEW/FROM FILE/COMPLETE**
+				NEXT_STATE.REGS[rt] = CURRENT_STATE.REGS[rs] & (ID_EX.imm & 0x0000FFFF);
+				break;
+			case 0x28: //SB
+				addr = CURRENT_STATE.REGS[rs] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				data = mem_read_32( addr);
+				data = (data & 0xFFFFFF00) | (CURRENT_STATE.REGS[rt] & 0x000000FF);
+				mem_write_32(addr, data);
+				break;
+			case 0x20: //LB **NEW/FROM FILE/COMPLETE**
+				data = mem_read_32( CURRENT_STATE.REGS[rs] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
+				NEXT_STATE.REGS[rt] = ((data & 0x000000FF) & 0x80) > 0 ? (data | 0xFFFFFF00) : (data & 0x000000FF);
+				break;
+			case 0x21: //LH **NEW/FROM FILE/COMPLETE**
+				data = mem_read_32( CURRENT_STATE.REGS[rs] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
+				NEXT_STATE.REGS[rt] = ((data & 0x0000FFFF) & 0x8000) > 0 ? (data | 0xFFFF0000) : (data & 0x0000FFFF);
+				break;
+			case 0x0A: //SLTI **NEW/FROM FILE/COMPLETE**
+				if ( (  (int32_t)CURRENT_STATE.REGS[rs] - (int32_t)( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF))) < 0){
+					NEXT_STATE.REGS[rt] = 0x1;
+				}else{
+					NEXT_STATE.REGS[rt] = 0x0;
+				}
+				break;
 		}
 	}
 
