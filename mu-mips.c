@@ -648,9 +648,6 @@ void EX()
 					}
 				}
 				break;
-<<<<<<< HEAD
-			case 0x02: //J **NEW/COMPLETE**
-=======
 			case 0x02: //J
 				// dont fetch next instruciton, until we have the NEW PC
 				// once the jump is HERE In EX(), there will be an instruction in ID() and IF() stage?
@@ -659,7 +656,6 @@ void EX()
 				// if we are taking the branch, FLUSH out the instrucvtion stuff in ID() stage and its
 				// reg-related stuff!
 
->>>>>>> 499aeed555adcfde883217ef4643649cfe226264
 				printf("J not yet implemented \n");
 				NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
 				//branch_jump = TRUE; 
