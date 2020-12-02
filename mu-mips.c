@@ -518,7 +518,7 @@ void EX()
 				EX_MEM.ALUOutput = ID_EX.B >> sa;
 				break;
 			case 0x03:  //SRA **NEW/FROM FILE/COMPLETE** ---->this always evaluates to true
-				if ((ID_EX.B & 0x80000000) == 1)
+				if ((ID_EX.B & 0x80000000) == 0x1)
 				{
 					EX_MEM.ALUOutput =  ~(~ID_EX.B >> sa );
 				}
