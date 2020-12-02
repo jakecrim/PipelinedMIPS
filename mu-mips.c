@@ -384,6 +384,23 @@ void WB()
 					writeBackValue = MEM_WB.LMD; //simulating same cycle writeback capability with LW
 					printf("LW WRITEBACK \n");
 					break;
+				case 0x0D: //ORI
+					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+					printf("ORI WRITEBACK \n");
+					break;
+				case 0x0C: //ANDI
+					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+					printf("ANDI WRITEBACK \n");
+					break;
+				case 0x20: //LB
+					NEXT_STATE.REGS[rt] = MEM_WB.LMD;
+					writeBackValue = MEM_WB.LMD;
+					printf("LB WRITEBACK \n");
+					break;
+				case 0x0A: //SLTI
+					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
+					printf("SLTI WRITEBACK \n");
+					break;
 
 			}
 		}
@@ -497,56 +514,56 @@ void EX()
 				//branch_jump = TRUE;
 				break;
 			case 0x02: //SRL **NEW/FROM FILE/COMPLETE**
-				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] >> sa;
+				EX_MEM.ALUOutput = ID_EX.B >> sa;
 				break;
 			case 0x03:  //SRA **NEW/FROM FILE/COMPLETE** ---->this always evaluates to true
-			/*	if ((CURRENT_STATE.REGS[rt] & 0x80000000) == 1)
+				if ((ID_EX.B & 0x80000000) == 1)
 				{
-					NEXT_STATE.REGS[rd] =  ~(~CURRENT_STATE.REGS[rt] >> sa );
+					EX_MEM.ALUOutput =  ~(~ID_EX.B >> sa );
 				}
 				else{
-					NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] >> sa;
+					EX_MEM.ALUOutput = ID_EX.B >> sa;
 				}
-				break;*/
+				break;
 			case 0x22: //SUB **NEW/FROM FILE/COMPLETE**
-				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rs] - CURRENT_STATE.REGS[rt];
+				EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
 				break;
 			case 0x00: //SLL **NEW/FROM FILE/COMPLETE**
-				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] << sa;
+				EX_MEM.ALUOutput = ID_EX.B << sa;
 				break;
 			case 0x1B: //DIVU
-				if(CURRENT_STATE.REGS[rt] != 0)
+				if(ID_EX.B != 0)
 				{
-					NEXT_STATE.LO = CURRENT_STATE.REGS[rs] / CURRENT_STATE.REGS[rt];
-					NEXT_STATE.HI = CURRENT_STATE.REGS[rs] % CURRENT_STATE.REGS[rt];
+					NEXT_STATE.LO = ID_EX.A / ID_EX.B;
+					NEXT_STATE.HI = ID_EX.A % ID_EX.B;
 				}
 				break;
 			case 0x10: //MFHI **NEW/FROM FILE/COMPLETE**
-				NEXT_STATE.REGS[rd] = CURRENT_STATE.HI;
+				EX_MEM.ALUOutput = CURRENT_STATE.HI;
 			case 0x12: //MFLO  **NEW/FROM FILE/COMPLETE**
-				NEXT_STATE.REGS[rd] = CURRENT_STATE.LO;
+				EX_MEM.ALUOutput = CURRENT_STATE.LO;
 				break;
 			case 0x19: //MULTU
-				product = (uint64_t)CURRENT_STATE.REGS[rs] * (uint64_t)CURRENT_STATE.REGS[rt];
+				product = (uint64_t)ID_EX.A * (uint64_t)ID_EX.B;
 				NEXT_STATE.LO = (product & 0X00000000FFFFFFFF);
 				NEXT_STATE.HI = (product & 0XFFFFFFFF00000000)>>32;
 				break;
 			case 0x11: //MTHI **NEW/FROM FILE/COMPLETE**
-				NEXT_STATE.HI = CURRENT_STATE.REGS[rs];
+				NEXT_STATE.HI = ID_EX.A;
 				break;
 			case 0x13: //MTLO **NEW/FROM FILE/COMPLETE**
-				NEXT_STATE.LO = CURRENT_STATE.REGS[rs];
+				NEXT_STATE.LO = ID_EX.A;
 				break;
 			case 0x2A: //SLT **NEW/FROM FILE/COMPLETE**
-				if(CURRENT_STATE.REGS[rs] < CURRENT_STATE.REGS[rt]){
-					NEXT_STATE.REGS[rd] = 0x1;
+				if(ID_EX.A < ID_EX.B){
+					EX_MEM.ALUOutput = 0x1;
 				}
 				else{
-					NEXT_STATE.REGS[rd] = 0x0;
+					EX_MEM.ALUOutput = 0x0;
 				}
 				break;
 			case 0x27: //NOR **NEW/FROM FILE/COMPLETE**
-				NEXT_STATE.REGS[rd] = ~(CURRENT_STATE.REGS[rs] | CURRENT_STATE.REGS[rt]);
+				EX_MEM.ALUOutput = ~(ID_EX.A | ID_EX.B);
 				break;
 				
 
@@ -666,37 +683,37 @@ void EX()
 				NEXT_STATE.REGS[31] = CURRENT_STATE.PC + 4;
 				//branch_jump = TRUE;
 				break;
-			case 0x29: //SH **NEW/FROM FILE/COMPLETE**
-				addr = CURRENT_STATE.REGS[rs] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+			case 0x29: //SH **NEW/FROM FILE/INCOMPLETE**
+				addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				data = mem_read_32( addr);
-				data = (data & 0xFFFF0000) | (CURRENT_STATE.REGS[rt] & 0x0000FFFF);
+				data = (data & 0xFFFF0000) | (ID_EX.B & 0x0000FFFF);
 				mem_write_32(addr, data);
 				break;
 			case 0x0D: //ORI **NEW/FROM FILE/COMPLETE**
-				NEXT_STATE.REGS[rt] = CURRENT_STATE.REGS[rs] | (ID_EX.imm & 0x0000FFFF);
+				EX_MEM.ALUOutput = ID_EX.A | (ID_EX.imm & 0x0000FFFF);
 				break;
 			case 0x0C: //ANDI **NEW/FROM FILE/COMPLETE**
-				NEXT_STATE.REGS[rt] = CURRENT_STATE.REGS[rs] & (ID_EX.imm & 0x0000FFFF);
+				EX_MEM.ALUOutput = ID_EX.A & (ID_EX.imm & 0x0000FFFF);
 				break;
-			case 0x28: //SB
-				addr = CURRENT_STATE.REGS[rs] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
-				data = mem_read_32( addr);
-				data = (data & 0xFFFFFF00) | (CURRENT_STATE.REGS[rt] & 0x000000FF);
+			case 0x28: //SB **NEW/FROM FILE/INCOMPLETE**
+				addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				data = mem_read_32(addr);
+				data = (data & 0xFFFFFF00) | (ID_EX.B & 0x000000FF);
 				mem_write_32(addr, data);
 				break;
-			case 0x20: //LB **NEW/FROM FILE/COMPLETE**
-				data = mem_read_32( CURRENT_STATE.REGS[rs] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
-				NEXT_STATE.REGS[rt] = ((data & 0x000000FF) & 0x80) > 0 ? (data | 0xFFFFFF00) : (data & 0x000000FF);
+			case 0x20: //LB **NEW/FROM FILE/INCOMPLETE**
+				data = mem_read_32( ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
+				EX_MEM.ALUOutput = ((data & 0x000000FF) & 0x80) > 0 ? (data | 0xFFFFFF00) : (data & 0x000000FF);
 				break;
-			case 0x21: //LH **NEW/FROM FILE/COMPLETE**
-				data = mem_read_32( CURRENT_STATE.REGS[rs] + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
-				NEXT_STATE.REGS[rt] = ((data & 0x0000FFFF) & 0x8000) > 0 ? (data | 0xFFFF0000) : (data & 0x0000FFFF);
+			case 0x21: //LH **NEW/FROM FILE/INCOMPLETE**
+				data = mem_read_32( ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
+				EX_MEM.ALUOutput = ((data & 0x0000FFFF) & 0x8000) > 0 ? (data | 0xFFFF0000) : (data & 0x0000FFFF);
 				break;
 			case 0x0A: //SLTI **NEW/FROM FILE/COMPLETE**
-				if ( (  (int32_t)CURRENT_STATE.REGS[rs] - (int32_t)( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF))) < 0){
-					NEXT_STATE.REGS[rt] = 0x1;
+				if ( (  (int32_t)ID_EX.A - (int32_t)( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF))) < 0){
+					EX_MEM.ALUOutput = 0x1;
 				}else{
-					NEXT_STATE.REGS[rt] = 0x0;
+					EX_MEM.ALUOutput = 0x0;
 				}
 				break;
 		}
