@@ -3,6 +3,8 @@
 #define FALSE 0
 #define TRUE  1
 
+#define DEBUG 1
+
 /******************************************************************************/
 /* MIPS memory layout                                                                                                                                      */
 /******************************************************************************/
@@ -75,11 +77,14 @@ int REG_WRITE_EX_MEM;
 int REG_WRITE_MEM_WB;
 int stallCounter;
 uint32_t writeBackValue;
+
+// Flags
 bool rsHazardType1;
 bool rtHazardType1;
 bool rsHazardType2;
 bool rtHazardType2;
 bool oneCycleAfterHazard;
+bool branch_jump_flag;
 
 /*Forwarding Flags*/ 
 uint32_t ForwardA;

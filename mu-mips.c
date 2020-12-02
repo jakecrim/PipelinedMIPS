@@ -323,6 +323,7 @@ void handle_pipeline()
 	/*INSTRUCTION_COUNT should be incremented when instruction is done*/
 	/*Since we do not have branch/jump instructions, INSTRUCTION_COUNT should be incremented in WB stage */	
 	printf("|		cycle			|\n");
+	printf("| 		PC: 0x%08X		|\n", CURRENT_STATE.PC);
 	printf("*******************\n");	
 	WB();
 	printf("*******************\n");	
@@ -488,13 +489,13 @@ void EX()
 			case 0x08: //JR **NEW/COMPLETE**
 				printf("JR not yet implemented\n");
 				NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
-				//branch_jump = TRUE;
+				branch_jump_flag = true;
 				break;
 			case 0x09: //JALR **NEW/COMPLETE**
 				printf("JALR not yet implemented \n");
 				NEXT_STATE.REGS[rd] = CURRENT_STATE.PC + 4;
 				NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
-				//branch_jump = TRUE;
+				branch_jump_flag = true;
 				break;
 			case 0x02: //SRL **NEW/FROM FILE/COMPLETE**
 				NEXT_STATE.REGS[rd] = CURRENT_STATE.REGS[rt] >> sa;
@@ -569,7 +570,7 @@ void EX()
 					if((ID_EX.A & 0x80000000) > 0)
 					{
 						printf("BLTZ \n");
-						NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+						NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
 						//branch_jump = TRUE;
 					}
 				}
@@ -578,7 +579,7 @@ void EX()
 					if((ID_EX.A & 0x80000000) == 0x0)
 					{
 						printf("BGEZ \n");
-						NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+						NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
 						//branch_jump = TRUE;
 					}
 				}
@@ -588,8 +589,10 @@ void EX()
 				if(ID_EX.A == ID_EX.B)
 				{
 					printf("BEQ \n");
-					NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-					//branch_jump = TRUE;
+					// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
+					branch_jump_flag = true;
 
 				}
 				break;
@@ -597,16 +600,16 @@ void EX()
 				if(ID_EX.A != ID_EX.B)
 				{
 					printf("BNE \n");
-					NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-					//branch_jump = TRUE;
+					NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					branch_jump_flag = true;
 				}
 				break;
 			case 0x06: //BLEZ **NEW/COMPLETE**
 				if((ID_EX.A & 0x80000000) > 0 || ID_EX.A == 0)
 				{
 					printf("BLE \n");
-					NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-					//branch_jump = TRUE;
+					NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					branch_jump_flag = true;
 				}
 				break;
 			case 0x08:  // ADDI
@@ -643,8 +646,8 @@ void EX()
 					if((ID_EX.A & 0x80000000) > 0)
 					{
 						printf("BGTZ \n");
-						NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-						//branch_jump = TRUE;
+						NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+						branch_jump_flag = true;
 					}
 				}
 				break;
@@ -657,12 +660,13 @@ void EX()
 				// reg-related stuff!
 
 				printf("J not yet implemented \n");
-				NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
-				//branch_jump = TRUE; 
+                NEXT_STATE.PC = (ID_EX.PC & 0xF0000000) | (target << 2);
+				printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
+				branch_jump_flag = true;
 				break;
 			case 0x03: //JAL **NEW/COMPLETE**
 				printf("JAL not yet implemented \n");
-				NEXT_STATE.PC = (CURRENT_STATE.PC & 0xF0000000) | (target << 2);
+				NEXT_STATE.PC = (ID_EX.PC & 0xF0000000) | (target << 2);
 				NEXT_STATE.REGS[31] = CURRENT_STATE.PC + 4;
 				//branch_jump = TRUE;
 				break;
@@ -702,6 +706,13 @@ void EX()
 		}
 	}
 
+	if(branch_jump_flag)
+	{
+		ID_EX.IR = 0;
+		ID_EX.A = 0;
+		ID_EX.B = 0;
+		ID_EX.imm = 0;
+	}
 	
 
 }
@@ -711,16 +722,17 @@ void EX()
 /************************************************************/
 void ID()
 {
-	// NEW TO DO:
-	// if it it is control instruciton, do a stall!
-	// 
 	printf("-Instruction Decode- \n");
+
+	// Pass PC along for Control instructions
+	ID_EX.PC = IF_ID.PC;
 
 	uint32_t rs = 0, rt = 0, opcode_EX_MEM = 0, opcode_MEM_WB = 0, rd_EX_MEM = 0, rd_MEM_WB = 0, immediate = 0, opcode = 0;
 
 	// decrease stall counter if it is set
 	if(stallCounter != 0)
 		stallCounter--;
+
 
 	/* STALLING SOLUTION WHEN FORWARDING DISABLED */
 	if(!ENABLE_FORWARDING)
@@ -862,6 +874,10 @@ void ID()
 	/* FORWARDING SECTION*/
 	if(ENABLE_FORWARDING)
 	{
+		#ifdef DEBUG
+			printf("ID Instruction: 0x%08X \n", IF_ID.IR);
+		#endif
+
 		bool forwardFlag = false;
 
 		ID_EX.IR = IF_ID.IR;
@@ -1015,6 +1031,17 @@ void ID()
 		}
 	}
 
+	/* Branch & Jump Detection Section*/
+	opcode = (IF_ID.IR & 0xFC000000) >> 26;
+	uint32_t function = IF_ID.IR & 0x0000003F;
+	// if the opcode is a branch or jump instruction, set the branch_jump flag!
+	// if(0x01 <= opcode <= 0x07 || 0x08 <= function <= 0x09 )
+	if((0x01 <= opcode && opcode <= 0x07) || (function == 0x08) || (function == 0x09) ) 
+	{
+		printf("Branch or Jump Instruction detected: \n");
+		// branch_jump_flag = true;
+	}
+
 
 }
 
@@ -1023,14 +1050,26 @@ void ID()
 /************************************************************/
 void IF()
 {
-	if(stallCounter == 0)
+	if(stallCounter == 0 && !branch_jump_flag)
 	{
 		IF_ID.IR = mem_read_32(CURRENT_STATE.PC);
-		IF_ID.PC = CURRENT_STATE.PC + 4;
+		IF_ID.PC = CURRENT_STATE.PC;
 		printf("Current Instruction: 0x%08X \n", IF_ID.IR);
 
 		// increment PC
 		NEXT_STATE.PC = CURRENT_STATE.PC + 4;
+	}
+	// effectively stalling IF there is a branch to be taken
+	if(branch_jump_flag == true)
+	{
+		branch_jump_flag = false;
+		IF_ID.IR = 0;
+		IF_ID.PC = 0;
+
+		ID_EX.IR = 0;
+		ID_EX.A = 0;
+		ID_EX.B = 0;
+		ID_EX.imm = 0;
 	}
 	
 }
