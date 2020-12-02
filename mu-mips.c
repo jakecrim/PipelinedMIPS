@@ -397,6 +397,7 @@ void WB()
 					NEXT_STATE.REGS[rt] = MEM_WB.LMD;
 					writeBackValue = MEM_WB.LMD;
 					printf("LB WRITEBACK \n");
+					printf("LB = 0x%08x \n", writeBackValue);
 					break;
 				case 0x0A: //SLTI
 					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
@@ -517,6 +518,7 @@ void EX()
 			case 0x02: //SRL **NEW/FROM FILE/COMPLETE**
 				EX_MEM.ALUOutput = ID_EX.B >> sa;
 				break;
+				/*
 			case 0x03:  //SRA **NEW/FROM FILE/COMPLETE** ---->this always evaluates to true
 				if ((ID_EX.B & 0x80000000) == 1)
 				{
@@ -525,7 +527,7 @@ void EX()
 				else{
 					EX_MEM.ALUOutput = ID_EX.B >> sa;
 				}
-				break;
+				break;*/
 			case 0x22: //SUB **NEW/FROM FILE/COMPLETE**
 				EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
 				break;
@@ -706,8 +708,11 @@ void EX()
 				mem_write_32(addr, data);
 				break;
 			case 0x20: //LB **NEW/FROM FILE/INCOMPLETE**
+				printf(" ***LOAD BTYE TESTING****\n\n");
+				printf(" ID_EX.A = 0x%08x \n\n", ID_EX.A);	
 				data = mem_read_32( ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
 				EX_MEM.ALUOutput = ((data & 0x000000FF) & 0x80) > 0 ? (data | 0xFFFFFF00) : (data & 0x000000FF);
+				EX_MEM.loadFlag = true;
 				break;
 			case 0x21: //LH **NEW/FROM FILE/INCOMPLETE**
 				data = mem_read_32( ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
