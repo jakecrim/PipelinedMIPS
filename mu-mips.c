@@ -359,7 +359,7 @@ void WB()
 		if(opcode == 0x0)
 		{
 			// for mult -> divu, MTHI & MTLO, DONT write back to register files!
-			if(!(0x18 <= function && function <= 0x1B) && !(function == 0x11 || function == 0x13))
+			if(!(0x18 <= function && function <= 0x1B) && !(function == 0x11 || function == 0x13 || function == 0x08 ))
 			{
 				printf("register to register writeback \n");
 				NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
@@ -538,7 +538,6 @@ void EX()
 				printf("XOR Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;	
 			case 0x08: //JR **NEW/COMPLETE**
-				printf("JR not yet implemented\n");
 				NEXT_STATE.PC = ID_EX.A; 
 				branch_jump_flag = true;
 				break;
@@ -700,23 +699,14 @@ void EX()
 				}
 				break;
 			case 0x02: //J
-				// dont fetch next instruciton, until we have the NEW PC
-				// once the jump is HERE In EX(), there will be an instruction in ID() and IF() stage?
-				// stall so that another isn't fetched? *ADJUSTED AND ALOT OF THESE IDEAS GO IN ID()
-				// ***
-				// if we are taking the branch, FLUSH out the instrucvtion stuff in ID() stage and its
-				// reg-related stuff!
-
-				printf("J not yet implemented \n");
                 NEXT_STATE.PC = (ID_EX.PC & 0xF0000000) | (target << 2);
 				printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
 				branch_jump_flag = true;
 				break;
 			case 0x03: //JAL **NEW/COMPLETE**
-				printf("JAL not yet implemented \n");
 				NEXT_STATE.PC = (ID_EX.PC & 0xF0000000) | (target << 2);
 				NEXT_STATE.REGS[31] = ID_EX.PC + 4;
-				//branch_jump = TRUE;
+				branch_jump_flag = true;
 				break;
 			case 0x29: //SH **NEW/FROM FILE/INCOMPLETE**
 			/*	addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
