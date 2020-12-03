@@ -394,11 +394,19 @@ void WB()
 					printf("ANDI WRITEBACK \n");
 					break;
 				case 0x20: //LB
+					MEM_WB.LMD = ((MEM_WB.LMD & 0x000000FF) & 0x80) > 0 ? (MEM_WB.LMD | 0xFFFFFF00) : (MEM_WB.LMD & 0x000000FF);
 					NEXT_STATE.REGS[rt] = MEM_WB.LMD;
 					writeBackValue = MEM_WB.LMD;
 					printf("LB WRITEBACK \n");
 					printf("LB = 0x%08x \n", writeBackValue);
 					break;
+				case 0x21: //LH
+					MEM_WB.LMD = ((MEM_WB.LMD & 0x0000FFFF) & 0x8000) > 0 ? (MEM_WB.LMD | 0xFFFF0000) : (MEM_WB.LMD & 0x0000FFFF);
+					NEXT_STATE.REGS[rt] = MEM_WB.LMD;
+					writeBackValue = MEM_WB.LMD;
+					printf("LH WRITEBACK \n");
+					break;
+
 				case 0x0A: //SLTI
 					NEXT_STATE.REGS[rt] = MEM_WB.ALUOutput;
 					printf("SLTI WRITEBACK \n");
@@ -428,6 +436,10 @@ void MEM()
 	MEM_WB.B = EX_MEM.B;
 	MEM_WB.ALUOutput = EX_MEM.ALUOutput;
 
+	uint32_t data, opcode;
+
+	opcode = (EX_MEM.IR & 0xFC000000) >> 26;
+
 
 	// check if the loadflag or the store flag is set to see if we need to access memory
 	if(EX_MEM.loadFlag)
@@ -440,7 +452,22 @@ void MEM()
 	else if(EX_MEM.storeFlag)
 	{
 		printf("Memory Store \n");
-		mem_write_32(EX_MEM.ALUOutput, EX_MEM.B);
+
+		if (opcode == 0x29) //SH
+		{
+			data = mem_read_32(EX_MEM.ALUOutput);
+			data = (data & 0xFFFF0000) | (EX_MEM.B & 0x0000FFFF);
+			mem_write_32(EX_MEM.ALUOutput, data);		
+
+		}
+		if (opcode == 0x28) //SB
+		{
+			data = mem_read_32(EX_MEM.ALUOutput);
+			data = (data & 0xFFFFFF00) | (EX_MEM.B & 0x000000FF);
+			mem_write_32(EX_MEM.ALUOutput, data);		
+		}
+		else 
+			mem_write_32(EX_MEM.ALUOutput, EX_MEM.B);
 	}
 	
 
@@ -461,7 +488,7 @@ void EX()
 	EX_MEM.B = ID_EX.B;
 
 	uint32_t opcode, function, target, rt, rs, rd, sa;
-	uint32_t addr, data;
+//	uint32_t addr, data;
 	uint64_t product;
 
 	rs = (ID_EX.IR & 0x03E00000) >> 21;
@@ -690,10 +717,13 @@ void EX()
 				//branch_jump = TRUE;
 				break;
 			case 0x29: //SH **NEW/FROM FILE/INCOMPLETE**
-				addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+			/*	addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				data = mem_read_32( addr);
-				data = (data & 0xFFFF0000) | (ID_EX.B & 0x0000FFFF);
-				mem_write_32(addr, data);
+				data = (data & 0xFFFF0000) | (ID_EX.B & 0x0000FFFF);*/
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.storeFlag = true;
+				printf("0x%08x THIS IS SH ALUOutput (addr) \n\n", EX_MEM.ALUOutput);
+				//mem_write_32(addr, data);
 				break;
 			case 0x0D: //ORI **NEW/FROM FILE/COMPLETE**
 				EX_MEM.ALUOutput = ID_EX.A | (ID_EX.imm & 0x0000FFFF);
@@ -702,21 +732,23 @@ void EX()
 				EX_MEM.ALUOutput = ID_EX.A & (ID_EX.imm & 0x0000FFFF);
 				break;
 			case 0x28: //SB **NEW/FROM FILE/INCOMPLETE**
-				addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
-				data = mem_read_32(addr);
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.storeFlag = true;
+				printf("0x%08x THIS IS SB ALUOutput (addr) \n\n", EX_MEM.ALUOutput);
+
+			/*	data = mem_read_32(addr);
 				data = (data & 0xFFFFFF00) | (ID_EX.B & 0x000000FF);
-				mem_write_32(addr, data);
+				mem_write_32(addr, data);*/
 				break;
 			case 0x20: //LB **NEW/FROM FILE/INCOMPLETE**
 				printf(" ***LOAD BTYE TESTING****\n\n");
 				printf(" ID_EX.A = 0x%08x \n\n", ID_EX.A);	
-				data = mem_read_32( ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
-				EX_MEM.ALUOutput = ((data & 0x000000FF) & 0x80) > 0 ? (data | 0xFFFFFF00) : (data & 0x000000FF);
+				EX_MEM.ALUOutput =  ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF) );
 				EX_MEM.loadFlag = true;
 				break;
 			case 0x21: //LH **NEW/FROM FILE/INCOMPLETE**
-				data = mem_read_32( ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF)) );
-				EX_MEM.ALUOutput = ((data & 0x0000FFFF) & 0x8000) > 0 ? (data | 0xFFFF0000) : (data & 0x0000FFFF);
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.loadFlag = true;	
 				break;
 			case 0x0A: //SLTI **NEW/FROM FILE/COMPLETE**
 				if ( (  (int32_t)ID_EX.A - (int32_t)( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF))) < 0){
