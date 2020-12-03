@@ -322,6 +322,7 @@ void handle_pipeline()
 {
 	/*INSTRUCTION_COUNT should be incremented when instruction is done*/
 	/*Since we do not have branch/jump instructions, INSTRUCTION_COUNT should be incremented in WB stage */	
+	printf("|---------------------------------------|\n");
 	printf("|		cycle			|\n");
 	printf("| 		PC: 0x%08X		|\n", CURRENT_STATE.PC);
 	printf("*******************\n");	
@@ -358,7 +359,7 @@ void WB()
 		// If opcode = 0, its a register register writeback scenario
 		if(opcode == 0x0)
 		{
-			// for mult -> divu, MTHI & MTLO, DONT write back to register files!
+			// for mult -> divu, MTHI & MTLO, or JR DONT write back to register files!
 			if(!(0x18 <= function && function <= 0x1B) && !(function == 0x11 || function == 0x13 || function == 0x08 ))
 			{
 				printf("register to register writeback \n");
@@ -521,6 +522,30 @@ void EX()
 		printf("Function Code: 0x%08X \n", function);
 		switch(function)
 		{
+			case 0x00: //SLL 
+				EX_MEM.ALUOutput = ID_EX.A << sa;
+				break;
+			case 0x02: //SRL 
+				EX_MEM.ALUOutput = ID_EX.B >> sa;
+				break;
+			case 0x03:  //SRA  ---->this always evaluates to true
+				if ((ID_EX.B & 0x80000000) == 0x1)
+				{
+					EX_MEM.ALUOutput =  ~(~ID_EX.B >> sa );
+				}
+				else{
+					EX_MEM.ALUOutput = ID_EX.B >> sa;
+				}
+				break;
+			case 0x08: //JR **NEW/COMPLETE**
+				NEXT_STATE.PC = ID_EX.A; 
+				branch_jump_flag = true;
+				break;
+			case 0x09: //JALR **NEW/COMPLETE**
+				EX_MEM.ALUOutput = ID_EX.PC + 4;
+				NEXT_STATE.PC = ID_EX.A; 
+				branch_jump_flag = true;
+				break;
 			case 0x20: // ADD
 				EX_MEM.ALUOutput = ID_EX.A + ID_EX.B;
 				printf("ADD Result: 0x%08X \n", EX_MEM.ALUOutput);
@@ -537,32 +562,8 @@ void EX()
 				EX_MEM.ALUOutput = ID_EX.A ^ ID_EX.B;
 				printf("XOR Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;	
-			case 0x08: //JR **NEW/COMPLETE**
-				NEXT_STATE.PC = ID_EX.A; 
-				branch_jump_flag = true;
-				break;
-			case 0x09: //JALR **NEW/COMPLETE**
-				EX_MEM.ALUOutput = ID_EX.PC + 4;
-				NEXT_STATE.PC = ID_EX.A; 
-				branch_jump_flag = true;
-				break;
-			case 0x02: //SRL **NEW/FROM FILE/COMPLETE**
-				EX_MEM.ALUOutput = ID_EX.B >> sa;
-				break;
-			case 0x03:  //SRA **NEW/FROM FILE/COMPLETE** ---->this always evaluates to true
-				if ((ID_EX.B & 0x80000000) == 0x1)
-				{
-					EX_MEM.ALUOutput =  ~(~ID_EX.B >> sa );
-				}
-				else{
-					EX_MEM.ALUOutput = ID_EX.B >> sa;
-				}
-				break;
-			case 0x22: //SUB **NEW/FROM FILE/COMPLETE**
+			case 0x22: //SUB 
 				EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
-				break;
-			case 0x00: //SLL **NEW/FROM FILE/COMPLETE**
-				EX_MEM.ALUOutput = ID_EX.A << sa;
 				break;
 			case 0x1B: //DIVU
 				if(ID_EX.B != 0)
@@ -571,10 +572,10 @@ void EX()
 					NEXT_STATE.HI = ID_EX.A % ID_EX.B;
 				}
 				break;
-			case 0x10: //MFHI **NEW/FROM FILE/COMPLETE**
+			case 0x10: //MFHI 
 				EX_MEM.ALUOutput = CURRENT_STATE.HI;
 				break;
-			case 0x12: //MFLO  **NEW/FROM FILE/COMPLETE**
+			case 0x12: //MFLO  
 				EX_MEM.ALUOutput = CURRENT_STATE.LO;
 				break;
 			case 0x19: //MULTU
@@ -582,13 +583,13 @@ void EX()
 				NEXT_STATE.LO = (product & 0X00000000FFFFFFFF);
 				NEXT_STATE.HI = (product & 0XFFFFFFFF00000000)>>32;
 				break;
-			case 0x11: //MTHI **NEW/FROM FILE/COMPLETE**
+			case 0x11: //MTHI 
 				NEXT_STATE.HI = ID_EX.A;
 				break;
-			case 0x13: //MTLO **NEW/FROM FILE/COMPLETE**
+			case 0x13: //MTLO 
 				NEXT_STATE.LO = ID_EX.A;
 				break;
-			case 0x2A: //SLT **NEW/FROM FILE/COMPLETE**
+			case 0x2A: //SLT 
 				if(ID_EX.A < ID_EX.B){
 					EX_MEM.ALUOutput = 0x1;
 				}
@@ -596,11 +597,9 @@ void EX()
 					EX_MEM.ALUOutput = 0x0;
 				}
 				break;
-			case 0x27: //NOR **NEW/FROM FILE/COMPLETE**
+			case 0x27: //NOR 
 				EX_MEM.ALUOutput = ~(ID_EX.A | ID_EX.B);
 				break;
-				
-
 			case 0x0C: // SYSCALL
 				printf("SYSCALL \n");
 				// finish the final instruction thats in WB() stage
@@ -615,17 +614,17 @@ void EX()
 		switch(opcode)
 		{
 			case 0x01:
-				if(rt == 0x00000)  //BLTZ **NEW/COMPLETE**
+				if(rt == 0x00000)  //BLTZ 
 				{ 
 					if((ID_EX.A & 0x80000000) > 0)
 					{
 						printf("BLTZ \n");
 						NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-						printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
+						// printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
 						branch_jump_flag = true;
 					}
 				}
-				else if(rt == 0x00001)   //BGEZ **NEW/COMPLETE**
+				else if(rt == 0x00001)   //BGEZ 
 				{ 
 					if((ID_EX.A & 0x80000000) == 0x0)
 					{
@@ -636,18 +635,27 @@ void EX()
 				}
 				break;
 			
-			case 0x04: //BEQ **NEW/COMPLETE**
+			case 0x02: //J
+                NEXT_STATE.PC = (ID_EX.PC & 0xF0000000) | (target << 2);
+				// printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
+				branch_jump_flag = true;
+				break;
+			case 0x03: //JAL 
+				NEXT_STATE.PC = (ID_EX.PC & 0xF0000000) | (target << 2);
+				NEXT_STATE.REGS[31] = ID_EX.PC + 4;
+				branch_jump_flag = true;
+				break;
+			case 0x04: //BEQ 
 				if(ID_EX.A == ID_EX.B)
 				{
 					printf("BEQ \n");
-					// NEXT_STATE.PC = CURRENT_STATE.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
 					NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-					printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
+					// printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
 					branch_jump_flag = true;
 
 				}
 				break;
-			case 0x05: //BNE **NEW/COMPLETE**
+			case 0x05: //BNE 
 				if(ID_EX.A != ID_EX.B)
 				{
 					printf("BNE \n");
@@ -655,11 +663,19 @@ void EX()
 					branch_jump_flag = true;
 				}
 				break;
-			case 0x06: //BLEZ **NEW/COMPLETE**
+			case 0x06: //BLEZ 
 				if((ID_EX.A & 0x80000000) > 0 || ID_EX.A == 0)
 				{
 					printf("BLE \n");
 					NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					branch_jump_flag = true;
+				}
+				break;
+			case 0x07: //BGTZ  
+				if((ID_EX.A & 0x80000000) == 0x0 || ID_EX.A != 0)
+				{
+					NEXT_STATE.PC = ID_EX.PC +  ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
 					branch_jump_flag = true;
 				}
 				break;
@@ -671,6 +687,19 @@ void EX()
 				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;
+			case 0x0A: //SLTI 
+				if ( (  (int32_t)ID_EX.A - (int32_t)( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF))) < 0){
+					EX_MEM.ALUOutput = 0x1;
+				}else{
+					EX_MEM.ALUOutput = 0x0;
+				}
+				break;
+			case 0x0D: //ORI 
+				EX_MEM.ALUOutput = ID_EX.A | (ID_EX.imm & 0x0000FFFF);
+				break;
+			case 0x0C: //ANDI 
+				EX_MEM.ALUOutput = ID_EX.A & (ID_EX.imm & 0x0000FFFF);
+				break;
 			case 0x0E: //XORI
 				EX_MEM.ALUOutput = ID_EX.A ^ (ID_EX.imm & 0x0000FFFF);
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
@@ -679,75 +708,36 @@ void EX()
 				EX_MEM.ALUOutput = ID_EX.imm << 16;
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				break;
+			case 0x20: //LB 
+				printf(" ***LOAD BTYE TESTING****\n\n");
+				printf(" ID_EX.A = 0x%08x \n\n", ID_EX.A);	
+				EX_MEM.ALUOutput =  ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF) );
+				EX_MEM.loadFlag = true;
+				break;
+			case 0x21: //LH 
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.loadFlag = true;	
+				break;
 			case 0x23: //LW
 				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Base: 0x%08x \n", ID_EX.A);
 				EX_MEM.loadFlag = true;
+				break;
+			case 0x28: //SB 
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.storeFlag = true;
+				printf("0x%08x THIS IS SB ALUOutput (addr) \n\n", EX_MEM.ALUOutput);
+				break;
+			case 0x29: //SH 
+				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
+				EX_MEM.storeFlag = true;
+				printf("0x%08x THIS IS SH ALUOutput (addr) \n\n", EX_MEM.ALUOutput);
 				break;
 			case 0x2B: //SW
 				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
 				printf("Result: 0x%08X \n", EX_MEM.ALUOutput);
 				EX_MEM.storeFlag = true;
 				REG_WRITE_EX_MEM = false;
-				break;
-			case 0x07: //BGTZ  **NEW/COMPLETE**
-				if((ID_EX.A & 0x80000000) == 0x0 || ID_EX.A != 0)
-				{
-					NEXT_STATE.PC = ID_EX.PC +  ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-					printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
-					branch_jump_flag = true;
-				}
-				break;
-			case 0x02: //J
-                NEXT_STATE.PC = (ID_EX.PC & 0xF0000000) | (target << 2);
-				printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
-				branch_jump_flag = true;
-				break;
-			case 0x03: //JAL **NEW/COMPLETE**
-				NEXT_STATE.PC = (ID_EX.PC & 0xF0000000) | (target << 2);
-				NEXT_STATE.REGS[31] = ID_EX.PC + 4;
-				branch_jump_flag = true;
-				break;
-			case 0x29: //SH **NEW/FROM FILE/INCOMPLETE**
-			/*	addr = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
-				data = mem_read_32( addr);
-				data = (data & 0xFFFF0000) | (ID_EX.B & 0x0000FFFF);*/
-				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
-				EX_MEM.storeFlag = true;
-				printf("0x%08x THIS IS SH ALUOutput (addr) \n\n", EX_MEM.ALUOutput);
-				//mem_write_32(addr, data);
-				break;
-			case 0x0D: //ORI **NEW/FROM FILE/COMPLETE**
-				EX_MEM.ALUOutput = ID_EX.A | (ID_EX.imm & 0x0000FFFF);
-				break;
-			case 0x0C: //ANDI **NEW/FROM FILE/COMPLETE**
-				EX_MEM.ALUOutput = ID_EX.A & (ID_EX.imm & 0x0000FFFF);
-				break;
-			case 0x28: //SB **NEW/FROM FILE/INCOMPLETE**
-				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
-				EX_MEM.storeFlag = true;
-				printf("0x%08x THIS IS SB ALUOutput (addr) \n\n", EX_MEM.ALUOutput);
-
-			/*	data = mem_read_32(addr);
-				data = (data & 0xFFFFFF00) | (ID_EX.B & 0x000000FF);
-				mem_write_32(addr, data);*/
-				break;
-			case 0x20: //LB **NEW/FROM FILE/INCOMPLETE**
-				printf(" ***LOAD BTYE TESTING****\n\n");
-				printf(" ID_EX.A = 0x%08x \n\n", ID_EX.A);	
-				EX_MEM.ALUOutput =  ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF) );
-				EX_MEM.loadFlag = true;
-				break;
-			case 0x21: //LH **NEW/FROM FILE/INCOMPLETE**
-				EX_MEM.ALUOutput = ID_EX.A + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF));
-				EX_MEM.loadFlag = true;	
-				break;
-			case 0x0A: //SLTI **NEW/FROM FILE/COMPLETE**
-				if ( (  (int32_t)ID_EX.A - (int32_t)( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000) : (ID_EX.imm & 0x0000FFFF))) < 0){
-					EX_MEM.ALUOutput = 0x1;
-				}else{
-					EX_MEM.ALUOutput = 0x0;
-				}
 				break;
 		}
 	}
@@ -1320,7 +1310,8 @@ void show_pipeline(){
 	printf("\n---Pipeline Contents---\n");
 	printf("Cycle Count: %d \n", CYCLE_COUNT);
 	//IF/ID pipeline register
-	printf("PC: 0x%08X \n", CURRENT_STATE.PC);
+	printf("PC: 0x%08X \n", CURRENT_STATE.PC - 4); // this is often called after running a cylce, so to show
+													// the expected PC, show the previous one
 	printf("IF/ID.IR 0x%08X \n", IF_ID.IR);
 	printf("IF/ID.PC 0x%08X \n", IF_ID.PC);
 	print_program(IF_ID.PC); // -4 because this PC val has already been incremented
