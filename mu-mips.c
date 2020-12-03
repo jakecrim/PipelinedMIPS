@@ -343,11 +343,12 @@ void handle_pipeline()
 void WB()
 {
 	printf("-Write Back- \n");	
-	uint32_t rt, rd, opcode;
+	uint32_t rt, rd, opcode, function;
 	// getting necessary pieces of the instruction for execution
 	opcode = (MEM_WB.IR & 0xFC000000) >> 26;
 	rt = (MEM_WB.IR & 0x001F0000) >> 16;
 	rd = (MEM_WB.IR & 0x0000F800) >> 11;
+	function = MEM_WB.IR & 0x0000003F;
 
 	//simulating same cycle writeback capability 
 	writeBackValue = MEM_WB.ALUOutput;
@@ -357,8 +358,13 @@ void WB()
 		// If opcode = 0, its a register register writeback scenario
 		if(opcode == 0x0)
 		{
-			printf("register to register writeback \n");
-			NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
+			// for mult -> divu, MTHI & MTLO, DONT write back to register files!
+			if(!(0x18 <= function && function <= 0x1B) && !(function == 0x11 || function == 0x13))
+			{
+				printf("register to register writeback \n");
+				NEXT_STATE.REGS[rd] = MEM_WB.ALUOutput;
+			}
+			
 		}
 		else // non-reg-reg writeback scenario
 		{
@@ -487,13 +493,13 @@ void EX()
 	EX_MEM.A = ID_EX.A;
 	EX_MEM.B = ID_EX.B;
 
-	uint32_t opcode, function, target, rt, rs, rd, sa;
+	uint32_t opcode, function, target, rt, sa;
 //	uint32_t addr, data;
 	uint64_t product;
 
-	rs = (ID_EX.IR & 0x03E00000) >> 21;
+	// rs = (ID_EX.IR & 0x03E00000) >> 21;
 	rt = (ID_EX.IR & 0x001F0000) >> 16;
-	rd = (ID_EX.IR & 0x0000F800) >> 11;
+	// rd = (ID_EX.IR & 0x0000F800) >> 11;
 	sa = (ID_EX.IR & 0x000007C0) >> 6;
 
 	// set to false by default 
@@ -533,25 +539,24 @@ void EX()
 				break;	
 			case 0x08: //JR **NEW/COMPLETE**
 				printf("JR not yet implemented\n");
-				NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
+				NEXT_STATE.PC = ID_EX.A; 
 				branch_jump_flag = true;
 				break;
 			case 0x09: //JALR **NEW/COMPLETE**
-				printf("JALR not yet implemented \n");
-				NEXT_STATE.REGS[rd] = CURRENT_STATE.PC + 4;
-				NEXT_STATE.PC = CURRENT_STATE.REGS[rs];
+				EX_MEM.ALUOutput = ID_EX.PC + 4;
+				NEXT_STATE.PC = ID_EX.A; 
 				branch_jump_flag = true;
 				break;
 			case 0x02: //SRL **NEW/FROM FILE/COMPLETE**
-				EX_MEM.ALUOutput = ID_EX.A >> sa;
+				EX_MEM.ALUOutput = ID_EX.B >> sa;
 				break;
 			case 0x03:  //SRA **NEW/FROM FILE/COMPLETE** ---->this always evaluates to true
 				if ((ID_EX.B & 0x80000000) == 0x1)
 				{
-					EX_MEM.ALUOutput =  ~(~ID_EX.A >> sa );
+					EX_MEM.ALUOutput =  ~(~ID_EX.B >> sa );
 				}
 				else{
-					EX_MEM.ALUOutput = ID_EX.A >> sa;
+					EX_MEM.ALUOutput = ID_EX.B >> sa;
 				}
 				break;
 			case 0x22: //SUB **NEW/FROM FILE/COMPLETE**
@@ -569,6 +574,7 @@ void EX()
 				break;
 			case 0x10: //MFHI **NEW/FROM FILE/COMPLETE**
 				EX_MEM.ALUOutput = CURRENT_STATE.HI;
+				break;
 			case 0x12: //MFLO  **NEW/FROM FILE/COMPLETE**
 				EX_MEM.ALUOutput = CURRENT_STATE.LO;
 				break;
@@ -616,7 +622,8 @@ void EX()
 					{
 						printf("BLTZ \n");
 						NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-						//branch_jump = TRUE;
+						printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
+						branch_jump_flag = true;
 					}
 				}
 				else if(rt == 0x00001)   //BGEZ **NEW/COMPLETE**
@@ -625,7 +632,7 @@ void EX()
 					{
 						printf("BGEZ \n");
 						NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-						//branch_jump = TRUE;
+						branch_jump_flag = true;
 					}
 				}
 				break;
@@ -685,15 +692,11 @@ void EX()
 				REG_WRITE_EX_MEM = false;
 				break;
 			case 0x07: //BGTZ  **NEW/COMPLETE**
-				printf("BGTZ not yet implemented \n");
-				if(rt == 0x00000)
+				if((ID_EX.A & 0x80000000) == 0x0 || ID_EX.A != 0)
 				{
-					if((ID_EX.A & 0x80000000) > 0)
-					{
-						printf("BGTZ \n");
-						NEXT_STATE.PC = ID_EX.PC + ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
-						branch_jump_flag = true;
-					}
+					NEXT_STATE.PC = ID_EX.PC +  ( (ID_EX.imm & 0x8000) > 0 ? (ID_EX.imm | 0xFFFF0000)<<2 : (ID_EX.imm & 0x0000FFFF)<<2);
+					printf("Calculated Jump Addr: 0x%08X \n", NEXT_STATE.PC);
+					branch_jump_flag = true;
 				}
 				break;
 			case 0x02: //J
@@ -712,7 +715,7 @@ void EX()
 			case 0x03: //JAL **NEW/COMPLETE**
 				printf("JAL not yet implemented \n");
 				NEXT_STATE.PC = (ID_EX.PC & 0xF0000000) | (target << 2);
-				NEXT_STATE.REGS[31] = CURRENT_STATE.PC + 4;
+				NEXT_STATE.REGS[31] = ID_EX.PC + 4;
 				//branch_jump = TRUE;
 				break;
 			case 0x29: //SH **NEW/FROM FILE/INCOMPLETE**
@@ -1013,7 +1016,7 @@ void ID()
 		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt))
 		{
 			// Opcodes that are to be included for hazard detection
-			if(((0x0F < opcode) || (opcode == 0x0)) && !(opcode_EX_MEM > 0x28 ) )
+			if(((0x0F < opcode) || (opcode == 0x0) || (opcode < 0x8)) && !(opcode_EX_MEM > 0x28 ) )
 			{
 				//ForwardB = 0x10
 				ID_EX.B = EX_MEM.ALUOutput;
@@ -1097,6 +1100,7 @@ void ID()
 	// if(0x01 <= opcode <= 0x07 || 0x08 <= function <= 0x09 )
 	if((0x01 <= opcode && opcode <= 0x07) || (function == 0x08) || (function == 0x09) ) 
 	{
+		printf("Opcode of 0x%08X is 0x%08X \n", IF_ID.IR, opcode);
 		printf("Branch or Jump Instruction detected: \n");
 		// branch_jump_flag = true;
 	}
