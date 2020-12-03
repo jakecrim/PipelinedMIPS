@@ -543,23 +543,22 @@ void EX()
 				branch_jump_flag = true;
 				break;
 			case 0x02: //SRL **NEW/FROM FILE/COMPLETE**
-				EX_MEM.ALUOutput = ID_EX.B >> sa;
+				EX_MEM.ALUOutput = ID_EX.A >> sa;
 				break;
-				/*
 			case 0x03:  //SRA **NEW/FROM FILE/COMPLETE** ---->this always evaluates to true
 				if ((ID_EX.B & 0x80000000) == 0x1)
 				{
-					EX_MEM.ALUOutput =  ~(~ID_EX.B >> sa );
+					EX_MEM.ALUOutput =  ~(~ID_EX.A >> sa );
 				}
 				else{
-					EX_MEM.ALUOutput = ID_EX.B >> sa;
+					EX_MEM.ALUOutput = ID_EX.A >> sa;
 				}
-				break;*/
+				break;
 			case 0x22: //SUB **NEW/FROM FILE/COMPLETE**
 				EX_MEM.ALUOutput = ID_EX.A - ID_EX.B;
 				break;
 			case 0x00: //SLL **NEW/FROM FILE/COMPLETE**
-				EX_MEM.ALUOutput = ID_EX.B << sa;
+				EX_MEM.ALUOutput = ID_EX.A << sa;
 				break;
 			case 0x1B: //DIVU
 				if(ID_EX.B != 0)
@@ -994,24 +993,27 @@ void ID()
 		//forward from EX stage									//rs_ID_EX
 		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rs))
 		{	
-			//Forward A = 0x10
-			ID_EX.A = EX_MEM.ALUOutput;
-			printf("rs-rd collision from EX_MEM \n");
-			printf("condition 1\n");
-
-			// Specific Logic for if a Load Word hazard is found
-			if(opcode_EX_MEM == 0x23)
+			if(!(opcode_EX_MEM > 0x28 ))
 			{
-				printf("LW Hazard Detected \n");
-				stallCounter = 1;
+				//Forward A = 0x10
+				ID_EX.A = EX_MEM.ALUOutput;
+				printf("rs-rd collision from EX_MEM \n");
+				printf("condition 1\n");
+
+				// Specific Logic for if a Load Word hazard is found
+				if((0x20 <= opcode_EX_MEM) && (opcode_EX_MEM <= 0x23))
+				{
+					printf("LW Hazard Detected \n");
+					stallCounter = 1;
+				}
+
+				forwardFlag = true;
 			}
-
-			forwardFlag = true;
-
 		}							   							//rt_ID_EX
 		if((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt))
 		{
-			if((0x0F < opcode) || (opcode == 0x0))
+			// Opcodes that are to be included for hazard detection
+			if(((0x0F < opcode) || (opcode == 0x0)) && !(opcode_EX_MEM > 0x28 ) )
 			{
 				//ForwardB = 0x10
 				ID_EX.B = EX_MEM.ALUOutput;
@@ -1020,7 +1022,7 @@ void ID()
 				//printf(" %08x \n", EX_MEM.ALUOutput);
 
 				// Specific Logic for if a Load Word hazard is found
-				if(opcode_EX_MEM == 0x23)
+				if((0x20 <= opcode_EX_MEM) && (opcode_EX_MEM <= 0x23))
 				{
 					printf("LW Hazard Detected \n");
 					stallCounter = 1;
@@ -1034,23 +1036,26 @@ void ID()
 		//forward from MEM stage											//rs_ID_EX		//rs_ID_EX
 		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB != 0) && !((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rs)) && (rd_MEM_WB == rs))
 		{
-			//ForwardA = 0x01
-			ID_EX.A = MEM_WB.ALUOutput;
-			//might need to stall for WB
-			printf("rs-rd collision from MEM_WB \n");
-			printf("condition 3\n");
-
-			// If load word hazard we need the LMD val, not the ALUoutput
-			if(opcode_MEM_WB == 0x23)
+			if(!(opcode_MEM_WB > 0x28 ))
 			{
-				ID_EX.A = MEM_WB.LMD;
-			}
+				//ForwardA = 0x01
+				ID_EX.A = MEM_WB.ALUOutput;
+				//might need to stall for WB
+				printf("rs-rd collision from MEM_WB \n");
+				printf("condition 3\n");
 
-			forwardFlag = true;
+				// If load word hazard we need the LMD val, not the ALUoutput
+				if((0x20 <= opcode_MEM_WB) && (opcode_MEM_WB <= 0x23))
+				{
+					ID_EX.A = MEM_WB.LMD;
+				}
+
+				forwardFlag = true;
+			}
 		}														//rt_ID_EX		//rt_ID_EX
 		if((REG_WRITE_MEM_WB != 0) && (rd_MEM_WB != 0) && !((REG_WRITE_EX_MEM != 0) && (rd_EX_MEM != 0) && (rd_EX_MEM == rt)) && (rd_MEM_WB == rt))
 		{
-			if((0x0F < opcode) || (opcode == 0x0))
+			if(((0x0F < opcode) || (opcode == 0x0)) && !(opcode_MEM_WB > 0x28 ))
 			{
 				//ForwardB = 0x01
 				ID_EX.B = MEM_WB.ALUOutput;
@@ -1058,7 +1063,7 @@ void ID()
 				printf("condition 4\n");
 
 				// If load word hazard we need the LMD val, not the ALUoutput
-				if(opcode_MEM_WB == 0x23)
+				if((0x20 <= opcode_MEM_WB) && (opcode_MEM_WB <= 0x23))
 				{
 					ID_EX.A = MEM_WB.LMD;
 				}
@@ -1324,7 +1329,7 @@ void show_pipeline(){
 	printf("PC: 0x%08X \n", CURRENT_STATE.PC);
 	printf("IF/ID.IR 0x%08X \n", IF_ID.IR);
 	printf("IF/ID.PC 0x%08X \n", IF_ID.PC);
-	print_program(IF_ID.PC - 4); // -4 because this PC val has already been incremented
+	print_program(IF_ID.PC); // -4 because this PC val has already been incremented
 
 	printf("\n");
 
