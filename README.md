@@ -1,5 +1,12 @@
 # PipelinedMIPS
-This program simulates the functionality of a processor running MIPS assembly instructions. An input file containing a program entirely written in MIPS is the input,
-and the C program 'mu-mips.c' will run through the MIPS assembly instructions simulating their functionality.
-Not only does it simulate each instruction, it also simulates a 4 stage pipeline. Meaning it has to handle the data hazards and branch/jump predictions 
-that come along with pipelining.
+- This program simulates the functionality of a processor running MIPS assembly instructions. An input file containing a program entirely written in MIPS is the input,and the C program 'mu-mips.c' will run through the MIPS assembly instructions simulating their functionality.
+- Not only does it simulate each instruction, it also simulates a 4 stage pipeline. Meaning it has to handle the data hazards and branch/jump predictions that come along with pipelining.
+- Usage:
+    - run the executable with a `*.in` file as the argument, then follow on screen instructions for simulating the program.
+        - ex: `./mu-mips testHazards.in` 
+    - Program supports:
+        - full program simulation
+        - running for single or specified number of CPU cycles at a time
+        - register dump
+        - memory dump
+        - 'show' to show the contents of the pipelined registers.
